@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  address        String?
+  clientName     String?
+  inspectorName  String?
+  inspectionDate DateTime?
+  notes          String?
+  status         JobStatus @default(DRAFT)
+  errorMessage   String?
+  photos         Photo[]
+  analysis       Analysis?
+  report         Report?
+  templateId     String?
+  template       Template? @relation(fields: [templateId], references: [id])
+}
+
+enum JobStatus {
+  DRAFT
+  UPLOADING
+  ANALYZING
+  REVIEW
+  GENERATING
+  COMPLETE
+  ERROR
+}
+
+model Photo {
+  id            String        @id @default(cuid())
+  createdAt     DateTime      @default(now())
+  jobId         String
+  job           Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  originalName  String
+  originalPath  String
+  processedPath String?
+  mimeType      String
+  sizeBytes     Int
+  category      PhotoCategory?
+  aiDescription String?
+  sortOrder     Int           @default(0)
+}
+
+enum PhotoCategory {
+  PANELS
+  INVERTER
+  MOUNTING
+  METER_DISPLAY
+  AERIAL
+  BLUEPRINT
+  SITE_PLAN
+  GENERAL
+}
+
+model Analysis {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  jobId         String   @unique
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rawExtraction Json
+  reviewedData  Json
+  panelCount    Int?
+  issueCount    Int      @default(0)
+  issues        Issue[]
+}
+
+model Issue {
+  id          String        @id @default(cuid())
+  analysisId  String
+  analysis    Analysis      @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  severity    IssueSeverity
+  category    IssueCategory
+  description String
+  photoIds    String        @default("")
+  notes       String?
+  resolved    Boolean       @default(false)
+}
+
+enum IssueSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IssueCategory {
+  CRACK
+  PHYSICAL_DAMAGE
+  DISCOLORATION
+  SHADING
+  HOTSPOT
+  DELAMINATION
+  SOILING
+  MOUNTING
+  ELECTRICAL
+  OTHER
+}
+
+model Report {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  jobId            String   @unique
+  job              Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  pdfPath          String
+  pdfSizeBytes     Int?
+  templateSnapshot Json
+}
+
+model Template {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  isDefault Boolean  @default(false)
+  sections  Json
+  jobs      Job[]
+}

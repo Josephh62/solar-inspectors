@@ -21,7 +21,11 @@ interface Props {
 async function resizeJpeg(blob: Blob, name: string): Promise<File> {
   const url = URL.createObjectURL(blob);
   const img = new Image();
-  await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = url; });
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Image load failed"));
+    img.src = url;
+  });
   URL.revokeObjectURL(url);
   const MAX = 1568;
   let w = img.naturalWidth, h = img.naturalHeight;
@@ -47,7 +51,7 @@ async function prepareFile(file: File): Promise<File> {
     if (blob.size > 4 * 1024 * 1024) return resizeJpeg(blob, name);
     return new File([blob], name, { type: "image/jpeg" });
   } catch {
-    return file;
+    throw new Error(`${file.name}: Could not convert — open in Photos, export as JPEG, and re-upload`);
   }
 }
 
@@ -91,15 +95,21 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
       for (let i = 0; i < acceptedFiles.length; i++) {
         const file = acceptedFiles[i];
         setProgress(`Processing ${i + 1} of ${acceptedFiles.length}…`);
+        let prepared: File;
         try {
-          const prepared = await prepareFile(file);
+          prepared = await prepareFile(file);
+        } catch (err) {
+          errors.push(err instanceof Error ? err.message : `${file.name}: conversion failed`);
+          continue;
+        }
+        try {
           setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
           const uploaded = await uploadOne(jobId, prepared);
           current = [...current, ...uploaded];
           updatePhotos(current);
           successCount++;
         } catch (err) {
-          errors.push(`${file.name}: ${err instanceof Error ? err.message : "failed"}`);
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : "upload failed"}`);
         }
       }
 

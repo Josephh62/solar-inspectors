@@ -35,6 +35,12 @@ export async function POST(
             console.warn(`No storage path for ${photo.originalName} — upload may have failed`);
             return null;
           }
+          // Skip unconverted HEIC — Claude cannot process raw HEIC bytes
+          const isRawHeic = /\.(heic|heif)$/i.test(photo.originalName) && !photo.processedPath;
+          if (isRawHeic) {
+            console.warn(`Skipping raw HEIC (unconverted): ${photo.originalName}`);
+            return null;
+          }
           let buffer = await readFile(filePath);
           if (buffer.length > MAX_BASE64_SAFE) {
             buffer = await processImage(buffer, photo.originalName);

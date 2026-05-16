@@ -19,6 +19,41 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
+function convertHeicToJpeg(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1568;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        const s = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * s); h = Math.round(h * s);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => blob
+          ? resolve(new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" }))
+          : reject(new Error("Canvas export failed")),
+        "image/jpeg", 0.85
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`${file.name}: Browser cannot decode this HEIC file — open in Photos, tap Share → Save to Files as JPEG, and re-upload`));
+    };
+    img.src = url;
+  });
+}
+
+async function prepareFile(file: File): Promise<File> {
+  if (!/\.(heic|heif)$/i.test(file.name)) return file;
+  return convertHeicToJpeg(file);
+}
+
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
   const formData = new FormData();
   formData.append("jobId", jobId);
@@ -57,9 +92,17 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
 
       for (let i = 0; i < acceptedFiles.length; i++) {
         const file = acceptedFiles[i];
+        setProgress(`Processing ${i + 1} of ${acceptedFiles.length}…`);
+        let prepared: File;
+        try {
+          prepared = await prepareFile(file);
+        } catch (err) {
+          errors.push(err instanceof Error ? err.message : `${file.name}: conversion failed`);
+          continue;
+        }
         setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
         try {
-          const uploaded = await uploadOne(jobId, file);
+          const uploaded = await uploadOne(jobId, prepared);
           current = [...current, ...uploaded];
           updatePhotos(current);
           successCount++;

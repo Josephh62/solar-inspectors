@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processImage, isSupported, getExtension } from "@/lib/heic";
 import { saveOriginal } from "@/lib/storage";
+import sharp from "sharp";
 import type { Photo } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -50,10 +51,14 @@ export async function POST(req: NextRequest) {
       );
 
       // Process image → compressed JPEG, stored as base64 in DB
+      // Cap at 700KB so the base64 string stays under Turso's 1MB HTTP API limit
       let imageData: string | null = null;
       try {
-        const processedBuffer = await processImage(originalBuffer);
-        imageData = processedBuffer.toString("base64");
+        let buf = await processImage(originalBuffer);
+        while (buf.length > 700_000) {
+          buf = await sharp(buf).jpeg({ quality: 55, progressive: true }).toBuffer();
+        }
+        imageData = buf.toString("base64");
       } catch (err) {
         console.error(`processImage failed for ${filename}:`, err);
       }

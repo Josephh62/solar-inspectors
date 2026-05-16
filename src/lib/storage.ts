@@ -7,7 +7,9 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 
-const isNetlify = process.env.NETLIFY === "true";
+// Use Blobs when connected to a remote database (i.e. deployed to Netlify/cloud)
+// Fall back to local filesystem for local dev with a file-based SQLite DB
+const isNetlify = (process.env.DATABASE_URL ?? "").startsWith("libsql://");
 const LOCAL_ROOT = path.join(process.cwd());
 
 // ── Netlify Blobs (production) ────────────────────────────────────────────────

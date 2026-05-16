@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Read(//usr/local/**)",
-      "Read(//Users/joseph/.nvm/versions/node/**)"
+      "Read(//Users/joseph/.nvm/versions/node/**)",
+      "Bash(npm install:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['dependencies'].get\\('heic2any','NOT INSTALLED'\\)\\)\")"
     ]
   }
 }

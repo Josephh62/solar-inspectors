@@ -30,15 +30,15 @@ export async function POST(
     const photoInputs = (await Promise.all(
       job.photos.map(async (photo) => {
         try {
-          // Skip HEIC originals that were never converted — Claude can't process them
-          const isHeicOriginal = /\.(heic|heif)$/i.test(photo.originalName);
-          if (!photo.processedPath && isHeicOriginal) {
-            console.warn(`Skipping unconverted HEIC: ${photo.originalName}`);
+          const filePath = photo.processedPath ?? photo.originalPath;
+          if (!filePath) {
+            console.warn(`Skipping photo with no path: ${photo.originalName}`);
             return null;
           }
-          const filePath = photo.processedPath ?? photo.originalPath;
           let buffer = await readFile(filePath);
-          if (buffer.length > MAX_BASE64_SAFE) {
+          // Re-process if too large or still raw HEIC (shouldn't happen after client-side conversion)
+          const isHeic = /\.(heic|heif)$/i.test(photo.originalName) && !photo.processedPath;
+          if (buffer.length > MAX_BASE64_SAFE || isHeic) {
             buffer = await processImage(buffer, photo.originalName);
           }
           return { buffer, originalName: photo.originalName, mimeType: "image/jpeg" };

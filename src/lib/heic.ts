@@ -31,7 +31,8 @@ export function isSupported(filename: string, mimeType: string): boolean {
 
 /** Convert HEIC buffer → JPEG buffer (cross-platform) */
 async function heicToJpeg(buffer: Buffer): Promise<Buffer> {
-  const output = await convert({ buffer, format: "JPEG", quality: 0.92 });
+  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const output = await convert({ buffer: arrayBuffer, format: "JPEG", quality: 0.92 });
   return Buffer.from(output);
 }
 

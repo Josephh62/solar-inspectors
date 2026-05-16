@@ -18,43 +18,6 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
-async function resizeJpeg(blob: Blob, name: string): Promise<File> {
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("Image load failed"));
-    img.src = url;
-  });
-  URL.revokeObjectURL(url);
-  const MAX = 1568;
-  let w = img.naturalWidth, h = img.naturalHeight;
-  if (w > MAX || h > MAX) {
-    const s = Math.min(MAX / w, MAX / h);
-    w = Math.round(w * s); h = Math.round(h * s);
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = w; canvas.height = h;
-  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-  const out = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.82));
-  return new File([out ?? blob], name, { type: "image/jpeg" });
-}
-
-async function prepareFile(file: File): Promise<File> {
-  if (!/\.(heic|heif)$/i.test(file.name)) return file;
-  try {
-    const heic2any = (await import("heic2any")).default;
-    const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.75 });
-    const blob = Array.isArray(result) ? result[0] : result;
-    const name = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-    // Keep under Netlify's 6MB request limit
-    if (blob.size > 4 * 1024 * 1024) return resizeJpeg(blob, name);
-    return new File([blob], name, { type: "image/jpeg" });
-  } catch {
-    throw new Error(`${file.name}: Could not convert — open in Photos, export as JPEG, and re-upload`);
-  }
-}
-
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
   const formData = new FormData();
   formData.append("jobId", jobId);
@@ -62,7 +25,6 @@ async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
 
   const res = await fetch("/api/photos/upload", { method: "POST", body: formData });
 
-  // Handle non-JSON responses (Netlify error pages, timeouts, etc.)
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     throw new Error(`Server error (${res.status})`);
@@ -94,17 +56,9 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
 
       for (let i = 0; i < acceptedFiles.length; i++) {
         const file = acceptedFiles[i];
-        setProgress(`Processing ${i + 1} of ${acceptedFiles.length}…`);
-        let prepared: File;
+        setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
         try {
-          prepared = await prepareFile(file);
-        } catch (err) {
-          errors.push(err instanceof Error ? err.message : `${file.name}: conversion failed`);
-          continue;
-        }
-        try {
-          setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
-          const uploaded = await uploadOne(jobId, prepared);
+          const uploaded = await uploadOne(jobId, file);
           current = [...current, ...uploaded];
           updatePhotos(current);
           successCount++;
@@ -146,7 +100,6 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
 
   return (
     <div className="space-y-4">
-      {/* Drop zone */}
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
@@ -164,7 +117,7 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
           )}
           <div>
             <p className="text-slate-300 font-medium">
-              {uploading ? progress || "Uploading & processing…" : isDragActive ? "Drop photos here" : "Drop photos here"}
+              {uploading ? progress || "Uploading…" : "Drop photos here"}
             </p>
             <p className="text-slate-500 text-sm mt-1">
               HEIC · JPEG · PNG · WebP — tap to browse
@@ -173,7 +126,6 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
         </div>
       </div>
 
-      {/* Thumbnail grid */}
       {photos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
           {photos.map((photo) => (
@@ -192,11 +144,9 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
                   </div>
                 )}
               </div>
-              {/* Label */}
               <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 rounded-b-lg">
                 <p className="text-[9px] text-slate-300 truncate">{photo.originalName}</p>
               </div>
-              {/* Remove button */}
               <button
                 onClick={() => removePhoto(photo.id)}
                 className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

@@ -1,22 +1,7 @@
 import sharp from "sharp";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { writeFile, readFile, unlink } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
 
-const execFileAsync = promisify(execFile);
 const MAX_PX = 1568;
 const MAX_BYTES = 3 * 1024 * 1024;
-
-/** Detect HEIC/HEIF by magic bytes (ftyp box at offset 4) */
-function isHeic(buffer: Buffer): boolean {
-  if (buffer.length < 12) return false;
-  const ftyp = buffer.subarray(4, 8).toString("ascii");
-  if (ftyp !== "ftyp") return false;
-  const brand = buffer.subarray(8, 12).toString("ascii").toLowerCase();
-  return brand.startsWith("heic") || brand.startsWith("heif") || brand.startsWith("mif1") || brand.startsWith("msf1");
-}
 
 export function getExtension(filename: string, mimeType: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -31,46 +16,20 @@ export function isSupported(filename: string, mimeType: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   const supportedExts = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
   const supportedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
-  return supportedExts.includes(ext) || supportedMimes.some(m => mimeType.startsWith(m));
+  return supportedExts.includes(ext) || supportedMimes.some((m) => mimeType.startsWith(m));
 }
 
-/** Convert HEIC → JPEG using macOS sips (local dev only) */
-async function heicToJpegViaSips(buffer: Buffer): Promise<Buffer> {
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const inPath = join(tmpdir(), `${id}.heic`);
-  const outPath = join(tmpdir(), `${id}.jpg`);
-  await writeFile(inPath, buffer);
-  try {
-    await execFileAsync("sips", ["-s", "format", "jpeg", inPath, "--out", outPath]);
-    return await readFile(outPath);
-  } finally {
-    await unlink(inPath).catch(() => {});
-    await unlink(outPath).catch(() => {});
-  }
-}
-
-export async function processImage(buffer: Buffer, filename: string): Promise<Buffer> {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  const heicByMagic = isHeic(buffer);
-  const heicByExt = ext === "heic" || ext === "heif";
-
-  let input = buffer;
-  if (heicByMagic || heicByExt) {
-    if (process.platform === "darwin") {
-      // Local dev on macOS — use sips
-      input = await heicToJpegViaSips(buffer);
-    } else {
-      // On Netlify/Linux, HEIC must be converted client-side before uploading.
-      // heic-convert WASM crashes the Lambda process so we cannot use it.
-      throw new Error("HEIC files must be converted to JPEG before uploading on this server.");
-    }
-  }
-
-  let pipeline = sharp(input, { failOn: "none" })
+/**
+ * Converts any supported image (JPEG, PNG, WebP, HEIC, HEIF) to a
+ * compressed JPEG using sharp/libvips. HEIC/HEIF are supported natively
+ * by libvips on both Linux (Netlify) and macOS.
+ */
+export async function processImage(buffer: Buffer): Promise<Buffer> {
+  let processed = await sharp(buffer, { failOn: "none" })
     .rotate()
-    .resize({ width: MAX_PX, height: MAX_PX, fit: "inside", withoutEnlargement: true });
-
-  let processed = await pipeline.jpeg({ quality: 85, progressive: true }).toBuffer();
+    .resize({ width: MAX_PX, height: MAX_PX, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 85, progressive: true })
+    .toBuffer();
 
   if (processed.length > MAX_BYTES) {
     for (const quality of [75, 60, 45]) {

@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
       let processedPath: string | null = null;
       try {
-        const processedBuffer = await processImage(originalBuffer, filename);
+        const processedBuffer = await processImage(originalBuffer);
         processedPath = await saveProcessed(jobId, photo.id, processedBuffer);
       } catch (err) {
         console.error(`Failed to process ${filename}:`, err);

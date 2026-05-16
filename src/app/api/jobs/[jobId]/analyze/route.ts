@@ -31,23 +31,16 @@ export async function POST(
       job.photos.map(async (photo) => {
         try {
           const filePath = photo.processedPath ?? photo.originalPath;
-          if (!filePath) {
-            console.warn(`No storage path for ${photo.originalName} — upload may have failed`);
-            return null;
-          }
-          // Skip unconverted HEIC — Claude cannot process raw HEIC bytes
-          const isRawHeic = /\.(heic|heif)$/i.test(photo.originalName) && !photo.processedPath;
-          if (isRawHeic) {
-            console.warn(`Skipping raw HEIC (unconverted): ${photo.originalName}`);
-            return null;
-          }
+          if (!filePath) return null;
           let buffer = await readFile(filePath);
-          if (buffer.length > MAX_BASE64_SAFE) {
-            buffer = await processImage(buffer, photo.originalName);
+          // Always run through processImage if: over size limit, or no processed version exists
+          // processImage handles HEIC/HEIF natively via sharp/libvips
+          if (buffer.length > MAX_BASE64_SAFE || !photo.processedPath) {
+            buffer = await processImage(buffer);
           }
           return { buffer, originalName: photo.originalName, mimeType: "image/jpeg" };
         } catch (err) {
-          console.error(`Cannot read ${photo.originalName} (path=${photo.processedPath ?? photo.originalPath}):`, err);
+          console.error(`Skipping ${photo.originalName}:`, err);
           return null;
         }
       })

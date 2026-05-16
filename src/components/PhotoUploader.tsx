@@ -18,13 +18,34 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
+async function resizeJpeg(blob: Blob, name: string): Promise<File> {
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = url; });
+  URL.revokeObjectURL(url);
+  const MAX = 1568;
+  let w = img.naturalWidth, h = img.naturalHeight;
+  if (w > MAX || h > MAX) {
+    const s = Math.min(MAX / w, MAX / h);
+    w = Math.round(w * s); h = Math.round(h * s);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+  const out = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.82));
+  return new File([out ?? blob], name, { type: "image/jpeg" });
+}
+
 async function prepareFile(file: File): Promise<File> {
   if (!/\.(heic|heif)$/i.test(file.name)) return file;
   try {
     const heic2any = (await import("heic2any")).default;
-    const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+    const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.75 });
     const blob = Array.isArray(result) ? result[0] : result;
-    return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+    const name = file.name.replace(/\.(heic|heif)$/i, ".jpg");
+    // Keep under Netlify's 6MB request limit
+    if (blob.size > 4 * 1024 * 1024) return resizeJpeg(blob, name);
+    return new File([blob], name, { type: "image/jpeg" });
   } catch {
     return file;
   }

@@ -49,8 +49,13 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      const ext = getExtension(filename, mimeType);
-      const originalPath = await saveOriginal(jobId, photo.id, ext, originalBuffer);
+      let originalPath = "";
+      try {
+        const ext = getExtension(filename, mimeType);
+        originalPath = await saveOriginal(jobId, photo.id, ext, originalBuffer);
+      } catch (err) {
+        console.error(`Failed to save original ${filename}:`, err);
+      }
 
       let processedPath: string | null = null;
       try {

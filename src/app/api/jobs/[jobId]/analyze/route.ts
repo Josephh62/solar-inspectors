@@ -32,24 +32,24 @@ export async function POST(
         try {
           const filePath = photo.processedPath ?? photo.originalPath;
           if (!filePath) {
-            console.warn(`Skipping photo with no path: ${photo.originalName}`);
+            console.warn(`No storage path for ${photo.originalName} — upload may have failed`);
             return null;
           }
           let buffer = await readFile(filePath);
-          // Re-process if too large or still raw HEIC (shouldn't happen after client-side conversion)
-          const isHeic = /\.(heic|heif)$/i.test(photo.originalName) && !photo.processedPath;
-          if (buffer.length > MAX_BASE64_SAFE || isHeic) {
+          if (buffer.length > MAX_BASE64_SAFE) {
             buffer = await processImage(buffer, photo.originalName);
           }
           return { buffer, originalName: photo.originalName, mimeType: "image/jpeg" };
         } catch (err) {
-          console.error(`Skipping photo ${photo.originalName}:`, err);
+          console.error(`Cannot read ${photo.originalName} (path=${photo.processedPath ?? photo.originalPath}):`, err);
           return null;
         }
       })
     )).filter(Boolean) as { buffer: Buffer; originalName: string }[];
 
-    if (!photoInputs.length) throw new Error("No readable photos found — re-upload your photos and try again");
+    if (!photoInputs.length) throw new Error(
+      `No readable photos found. ${job.photos.length} photo(s) in DB but all failed to load — check Netlify function logs for details.`
+    );
 
     const analysis = await analyzePhotos(photoInputs);
 

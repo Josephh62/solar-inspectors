@@ -21,15 +21,15 @@ async function blobStore() {
 
 async function blobSave(key: string, buffer: Buffer) {
   const s = await blobStore();
-  await s.set(key, buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer);
+  await s.set(key, new Blob([new Uint8Array(buffer)]));
   return key;
 }
 
 async function blobRead(key: string): Promise<Buffer> {
   const s = await blobStore();
-  const data = await s.get(key, { type: "arrayBuffer" });
-  if (!data) throw new Error(`Blob not found: ${key}`);
-  return Buffer.from(data);
+  const blob = await s.get(key, { type: "blob" });
+  if (!blob) throw new Error(`Blob not found: ${key}`);
+  return Buffer.from(await blob.arrayBuffer());
 }
 
 async function blobDelete(key: string) {

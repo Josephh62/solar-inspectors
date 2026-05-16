@@ -1,11 +1,6 @@
 import sharp from "sharp";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { writeFile, readFile, unlink } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
+import convert from "heic-convert";
 
-const execFileAsync = promisify(execFile);
 const MAX_PX = 1568;
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -34,19 +29,10 @@ export function isSupported(filename: string, mimeType: string): boolean {
   return supportedExts.includes(ext) || supportedMimes.some(m => mimeType.startsWith(m));
 }
 
-/** Use macOS sips to convert HEIC buffer → JPEG buffer */
-async function heicToJpegViaSips(buffer: Buffer): Promise<Buffer> {
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const inPath = join(tmpdir(), `${id}.heic`);
-  const outPath = join(tmpdir(), `${id}.jpg`);
-  await writeFile(inPath, buffer);
-  try {
-    await execFileAsync("sips", ["-s", "format", "jpeg", inPath, "--out", outPath]);
-    return await readFile(outPath);
-  } finally {
-    await unlink(inPath).catch(() => {});
-    await unlink(outPath).catch(() => {});
-  }
+/** Convert HEIC buffer → JPEG buffer (cross-platform) */
+async function heicToJpeg(buffer: Buffer): Promise<Buffer> {
+  const output = await convert({ buffer, format: "JPEG", quality: 0.92 });
+  return Buffer.from(output);
 }
 
 export async function processImage(buffer: Buffer, filename: string): Promise<Buffer> {
@@ -56,7 +42,7 @@ export async function processImage(buffer: Buffer, filename: string): Promise<Bu
 
   let input = buffer;
   if (heicByMagic || heicByExt) {
-    input = await heicToJpegViaSips(buffer);
+    input = await heicToJpeg(buffer);
   }
 
   let pipeline = sharp(input, { failOn: "none" })

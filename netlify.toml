@@ -1,5 +1,5 @@
 [build]
-  command = "node scripts/add-image-data-col.mjs && npx prisma generate && npm run build"
+  command = "npx prisma generate && npm run build"
   publish = ".next"
 
 [build.environment]

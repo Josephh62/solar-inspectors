@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { deleteJobFiles } from "@/lib/storage";
 import type { IssueSeverity, IssueCategory } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -95,7 +94,7 @@ export async function DELETE(
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await deleteJobFiles(jobId);
+  // Photos are cascade-deleted by Prisma (onDelete: Cascade on Photo model)
   await prisma.job.delete({ where: { id: jobId } });
 
   return NextResponse.json({ success: true });

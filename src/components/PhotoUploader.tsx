@@ -19,22 +19,6 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
-async function prepareFile(file: File): Promise<File> {
-  if (!/\.(heic|heif)$/i.test(file.name)) return file;
-  // Opera/Chrome have no native HEIC support — convert to JPEG in the browser
-  const heic2any = (await import("heic2any")).default;
-  const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
-  const blob = Array.isArray(result) ? result[0] : result;
-  // If still too large for Netlify's 6MB body limit, re-compress
-  const finalBlob = blob.size > 5 * 1024 * 1024
-    ? await (async () => {
-        const r = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.5 });
-        return Array.isArray(r) ? r[0] : r;
-      })()
-    : blob;
-  return new File([finalBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-}
-
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
   const formData = new FormData();
   formData.append("jobId", jobId);
@@ -73,19 +57,9 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
 
       for (let i = 0; i < acceptedFiles.length; i++) {
         const file = acceptedFiles[i];
-        setProgress(`Processing ${i + 1} of ${acceptedFiles.length}…`);
-
-        let prepared: File;
-        try {
-          prepared = await prepareFile(file);
-        } catch {
-          errors.push(`${file.name}: Could not convert — export as JPEG from your Photos app and re-upload`);
-          continue;
-        }
-
         setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
         try {
-          const uploaded = await uploadOne(jobId, prepared);
+          const uploaded = await uploadOne(jobId, file);
           current = [...current, ...uploaded];
           updatePhotos(current);
           successCount++;

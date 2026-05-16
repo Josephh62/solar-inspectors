@@ -18,6 +18,27 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
+async function prepareFile(file: File): Promise<File> {
+  if (!/\.(heic|heif)$/i.test(file.name)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.92)
+    );
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
   const formData = new FormData();
   formData.append("jobId", jobId);
@@ -59,7 +80,8 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
         const file = acceptedFiles[i];
         setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
         try {
-          const uploaded = await uploadOne(jobId, file);
+          const prepared = await prepareFile(file);
+          const uploaded = await uploadOne(jobId, prepared);
           current = [...current, ...uploaded];
           updatePhotos(current);
           successCount++;

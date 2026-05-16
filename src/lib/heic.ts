@@ -1,6 +1,11 @@
 import sharp from "sharp";
-import convert from "heic-convert";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { writeFile, readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 
+const execFileAsync = promisify(execFile);
 const MAX_PX = 1568;
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -29,11 +34,19 @@ export function isSupported(filename: string, mimeType: string): boolean {
   return supportedExts.includes(ext) || supportedMimes.some(m => mimeType.startsWith(m));
 }
 
-/** Convert HEIC buffer → JPEG buffer (cross-platform) */
-async function heicToJpeg(buffer: Buffer): Promise<Buffer> {
-  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-  const output = await convert({ buffer: arrayBuffer, format: "JPEG", quality: 0.92 });
-  return Buffer.from(output);
+/** Convert HEIC → JPEG using macOS sips (local dev only) */
+async function heicToJpegViaSips(buffer: Buffer): Promise<Buffer> {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const inPath = join(tmpdir(), `${id}.heic`);
+  const outPath = join(tmpdir(), `${id}.jpg`);
+  await writeFile(inPath, buffer);
+  try {
+    await execFileAsync("sips", ["-s", "format", "jpeg", inPath, "--out", outPath]);
+    return await readFile(outPath);
+  } finally {
+    await unlink(inPath).catch(() => {});
+    await unlink(outPath).catch(() => {});
+  }
 }
 
 export async function processImage(buffer: Buffer, filename: string): Promise<Buffer> {
@@ -43,7 +56,14 @@ export async function processImage(buffer: Buffer, filename: string): Promise<Bu
 
   let input = buffer;
   if (heicByMagic || heicByExt) {
-    input = await heicToJpeg(buffer);
+    if (process.platform === "darwin") {
+      // Local dev on macOS — use sips
+      input = await heicToJpegViaSips(buffer);
+    } else {
+      // On Netlify/Linux, HEIC must be converted client-side before uploading.
+      // heic-convert WASM crashes the Lambda process so we cannot use it.
+      throw new Error("HEIC files must be converted to JPEG before uploading on this server.");
+    }
   }
 
   let pipeline = sharp(input, { failOn: "none" })

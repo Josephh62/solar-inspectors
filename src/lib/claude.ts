@@ -85,6 +85,7 @@ no explanation text, just the raw JSON.
 export interface PhotoInput {
   buffer: Buffer;
   originalName: string;
+  mimeType?: string;
 }
 
 export async function analyzePhotos(photos: PhotoInput[]): Promise<ClaudeAnalysis> {
@@ -99,7 +100,7 @@ export async function analyzePhotos(photos: PhotoInput[]): Promise<ClaudeAnalysi
       type: "image",
       source: {
         type: "base64",
-        media_type: "image/jpeg",
+        media_type: (photo.mimeType ?? "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
         data: base64,
       },
     });

@@ -18,9 +18,28 @@ interface Props {
   existingPhotos?: Photo[];
 }
 
+async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
+  const formData = new FormData();
+  formData.append("jobId", jobId);
+  formData.append("photos", file, file.name);
+
+  const res = await fetch("/api/photos/upload", { method: "POST", body: formData });
+
+  // Handle non-JSON responses (Netlify error pages, timeouts, etc.)
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Server error (${res.status})`);
+  }
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+  return data.photos as Photo[];
+}
+
 export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Props) {
   const [photos, setPhotos] = useState<Photo[]>(existingPhotos);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState("");
 
   const updatePhotos = (updated: Photo[]) => {
     setPhotos(updated);
@@ -32,28 +51,31 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
       if (!acceptedFiles.length) return;
       setUploading(true);
 
-      try {
-        const formData = new FormData();
-        formData.append("jobId", jobId);
-        for (const file of acceptedFiles) {
-          formData.append("photos", file, file.name);
+      let current = [...photos];
+      let successCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < acceptedFiles.length; i++) {
+        const file = acceptedFiles[i];
+        setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
+        try {
+          const uploaded = await uploadOne(jobId, file);
+          current = [...current, ...uploaded];
+          updatePhotos(current);
+          successCount++;
+        } catch (err) {
+          errors.push(`${file.name}: ${err instanceof Error ? err.message : "failed"}`);
         }
+      }
 
-        const res = await fetch("/api/photos/upload", { method: "POST", body: formData });
-        const data = await res.json();
+      setProgress("");
+      setUploading(false);
 
-        if (!res.ok) {
-          toast.error(data.error || "Upload failed");
-          return;
-        }
-
-        const newPhotos = [...photos, ...(data.photos as Photo[])];
-        updatePhotos(newPhotos);
-        toast.success(`${data.photos.length} photo${data.photos.length !== 1 ? "s" : ""} uploaded`);
-      } catch {
-        toast.error("Upload failed — check your connection");
-      } finally {
-        setUploading(false);
+      if (successCount > 0) {
+        toast.success(`${successCount} photo${successCount !== 1 ? "s" : ""} uploaded`);
+      }
+      if (errors.length > 0) {
+        toast.error(errors.join("\n"));
       }
     },
     [jobId, photos]
@@ -97,7 +119,7 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
           )}
           <div>
             <p className="text-slate-300 font-medium">
-              {uploading ? "Uploading & processing..." : isDragActive ? "Drop photos here" : "Drop photos here"}
+              {uploading ? progress || "Uploading & processing…" : isDragActive ? "Drop photos here" : "Drop photos here"}
             </p>
             <p className="text-slate-500 text-sm mt-1">
               HEIC · JPEG · PNG · WebP — tap to browse

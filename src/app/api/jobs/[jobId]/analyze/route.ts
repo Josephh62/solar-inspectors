@@ -25,18 +25,25 @@ export async function POST(
   await prisma.job.update({ where: { id: jobId }, data: { status: "ANALYZING", errorMessage: null } });
 
   try {
-    // Load processed photos
+    // Load processed photos — skip any that can't be read (e.g. failed upload)
     const MAX_BASE64_SAFE = 3 * 1024 * 1024; // 3 MB raw → ~4 MB base64, under Claude's 5 MB limit
-    const photoInputs = await Promise.all(
+    const photoInputs = (await Promise.all(
       job.photos.map(async (photo) => {
-        const filePath = photo.processedPath ?? photo.originalPath;
-        let buffer = await readFile(filePath);
-        if (buffer.length > MAX_BASE64_SAFE) {
-          buffer = await processImage(buffer, photo.originalName);
+        try {
+          const filePath = photo.processedPath ?? photo.originalPath;
+          let buffer = await readFile(filePath);
+          if (buffer.length > MAX_BASE64_SAFE) {
+            buffer = await processImage(buffer, photo.originalName);
+          }
+          return { buffer, originalName: photo.originalName };
+        } catch (err) {
+          console.error(`Skipping photo ${photo.originalName}:`, err);
+          return null;
         }
-        return { buffer, originalName: photo.originalName };
       })
-    );
+    )).filter(Boolean) as { buffer: Buffer; originalName: string }[];
+
+    if (!photoInputs.length) throw new Error("No readable photos found — re-upload your photos and try again");
 
     const analysis = await analyzePhotos(photoInputs);
 
@@ -61,7 +68,7 @@ export async function POST(
       : null;
 
     // Update photo categories from analysis
-    const photosData = analysis.photos ?? [];
+    const photosData = Array.isArray(analysis.photos) ? analysis.photos : [];
     for (const pd of photosData) {
       if (pd.index < job.photos.length) {
         const photo = job.photos[pd.index];

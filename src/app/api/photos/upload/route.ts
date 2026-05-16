@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processImage, isSupported, getExtension } from "@/lib/heic";
-import { ensureJobDirs, saveOriginal, saveProcessed } from "@/lib/storage";
+import { saveOriginal } from "@/lib/storage";
 import type { Photo } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -10,30 +10,24 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-
     const jobId = formData.get("jobId") as string | null;
     if (!jobId?.trim()) {
       return NextResponse.json({ error: "jobId is required" }, { status: 400 });
     }
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
+    if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const photoFiles = formData.getAll("photos") as File[];
     if (!photoFiles.length) {
       return NextResponse.json({ error: "No photos provided" }, { status: 400 });
     }
 
-    await ensureJobDirs(jobId);
-
     const created: Photo[] = [];
 
     for (const file of photoFiles) {
       const filename = file.name ?? "photo";
       const mimeType = file.type || "image/jpeg";
-
       if (!isSupported(filename, mimeType)) continue;
 
       const originalBuffer = Buffer.from(await file.arrayBuffer());
@@ -49,35 +43,34 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      let originalPath = "";
-      try {
-        const ext = getExtension(filename, mimeType);
-        originalPath = await saveOriginal(jobId, photo.id, ext, originalBuffer);
-      } catch (err) {
-        console.error(`Failed to save original ${filename}:`, err);
-      }
+      // Save original locally in dev (no-op in production)
+      const ext = getExtension(filename, mimeType);
+      await saveOriginal(jobId, photo.id, ext, originalBuffer).catch((err) =>
+        console.error(`saveOriginal failed for ${filename}:`, err)
+      );
 
-      let processedPath: string | null = null;
+      // Process image → compressed JPEG, stored as base64 in DB
+      let imageData: string | null = null;
       try {
         const processedBuffer = await processImage(originalBuffer);
-        processedPath = await saveProcessed(jobId, photo.id, processedBuffer);
+        imageData = processedBuffer.toString("base64");
       } catch (err) {
-        console.error(`Failed to process ${filename}:`, err);
+        console.error(`processImage failed for ${filename}:`, err);
       }
 
       const updated = await prisma.photo.update({
         where: { id: photo.id },
-        data: { originalPath, processedPath },
+        data: {
+          originalPath: "",
+          processedPath: imageData ? "db" : null,
+          imageData,
+        },
       });
 
       created.push(updated);
     }
 
-    await prisma.job.update({
-      where: { id: jobId },
-      data: { status: "DRAFT" },
-    });
-
+    await prisma.job.update({ where: { id: jobId }, data: { status: "DRAFT" } });
     return NextResponse.json({ photos: created });
   } catch (err) {
     console.error("Upload error:", err);

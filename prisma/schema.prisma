@@ -42,6 +42,7 @@ model Photo {
   originalName  String
   originalPath  String
   processedPath String?
+  imageData     String?
   mimeType      String
   sizeBytes     Int
   category      PhotoCategory?

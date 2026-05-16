@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { analyzePhotos } from "@/lib/claude";
-import { readFile } from "@/lib/storage";
-import { processImage } from "@/lib/heic";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // Claude can take up to 2 min for many photos
+export const maxDuration = 120;
 
 export async function POST(
   _req: NextRequest,
@@ -21,48 +19,33 @@ export async function POST(
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
   if (!job.photos.length) return NextResponse.json({ error: "No photos to analyze" }, { status: 400 });
 
-  // Mark as analyzing
   await prisma.job.update({ where: { id: jobId }, data: { status: "ANALYZING", errorMessage: null } });
 
   try {
-    // Load processed photos — skip any that can't be read (e.g. failed upload)
-    const MAX_BASE64_SAFE = 3 * 1024 * 1024; // 3 MB raw → ~4 MB base64, under Claude's 5 MB limit
-    const photoInputs = (await Promise.all(
-      job.photos.map(async (photo) => {
-        try {
-          const filePath = photo.processedPath ?? photo.originalPath;
-          if (!filePath) return null;
-          let buffer = await readFile(filePath);
-          // Always run through processImage if: over size limit, or no processed version exists
-          // processImage handles HEIC/HEIF natively via sharp/libvips
-          if (buffer.length > MAX_BASE64_SAFE || !photo.processedPath) {
-            buffer = await processImage(buffer);
-          }
-          return { buffer, originalName: photo.originalName, mimeType: "image/jpeg" };
-        } catch (err) {
-          console.error(`Skipping ${photo.originalName}:`, err);
-          return null;
-        }
-      })
-    )).filter(Boolean) as { buffer: Buffer; originalName: string }[];
+    // Build photo inputs from imageData stored in DB — no file I/O needed
+    const photoInputs = job.photos
+      .filter((p) => !!p.imageData)
+      .map((p) => ({
+        buffer: Buffer.from(p.imageData!, "base64"),
+        originalName: p.originalName,
+        mimeType: "image/jpeg" as const,
+      }));
 
-    if (!photoInputs.length) throw new Error(
-      `No readable photos found. ${job.photos.length} photo(s) in DB but all failed to load — check Netlify function logs for details.`
-    );
+    if (!photoInputs.length) {
+      throw new Error(
+        `No processed photos found (${job.photos.length} photo(s) in DB, none with imageData). ` +
+        "Delete this job, re-upload your photos, and try again."
+      );
+    }
 
     const analysis = await analyzePhotos(photoInputs);
 
-    // Count visible issues from visual inspection
     const vi = analysis.visual_inspection;
     const issueFields = [
-      vi?.modules?.damage,
-      vi?.modules?.discoloration,
-      vi?.modules?.delamination,
-      vi?.modules?.soiling,
-      vi?.mounting_system?.damage,
-      vi?.mounting_system?.corrosion,
-      vi?.inverters?.loose_connections,
-      vi?.inverters?.faults,
+      vi?.modules?.damage, vi?.modules?.discoloration,
+      vi?.modules?.delamination, vi?.modules?.soiling,
+      vi?.mounting_system?.damage, vi?.mounting_system?.corrosion,
+      vi?.inverters?.loose_connections, vi?.inverters?.faults,
     ];
     const issueCount = issueFields.filter(
       (v) => v && v !== "NONE" && v !== "Not visible in provided photos"
@@ -72,7 +55,6 @@ export async function POST(
       ? Number(analysis.system_specs.module_count)
       : null;
 
-    // Update photo categories from analysis
     const photosData = Array.isArray(analysis.photos) ? analysis.photos : [];
     for (const pd of photosData) {
       if (pd.index < job.photos.length) {
@@ -82,14 +64,15 @@ export async function POST(
         await prisma.photo.update({
           where: { id: photo.id },
           data: {
-            category: validCategories.includes(cat) ? (cat as Parameters<typeof prisma.photo.update>[0]["data"]["category"]) : "GENERAL",
+            category: validCategories.includes(cat)
+              ? (cat as Parameters<typeof prisma.photo.update>[0]["data"]["category"])
+              : "GENERAL",
             aiDescription: pd.description ?? null,
           },
         });
       }
     }
 
-    // Create/upsert analysis record
     const existing = await prisma.analysis.findUnique({ where: { jobId } });
     if (existing) {
       await prisma.analysis.update({
@@ -113,20 +96,15 @@ export async function POST(
       });
     }
 
-    // Update job status + auto-fill address/client from analysis if not set
     const updates: Record<string, unknown> = { status: "REVIEW" };
     if (!job.address && analysis.project_address) updates.address = analysis.project_address;
     if (!job.clientName && analysis.project_name) updates.clientName = analysis.project_name;
-
     await prisma.job.update({ where: { id: jobId }, data: updates });
 
     return NextResponse.json({ success: true, analysis });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Analysis failed";
-    await prisma.job.update({
-      where: { id: jobId },
-      data: { status: "ERROR", errorMessage: msg },
-    });
+    await prisma.job.update({ where: { id: jobId }, data: { status: "ERROR", errorMessage: msg } });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

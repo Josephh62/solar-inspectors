@@ -14,7 +14,7 @@ interface Job {
   address: string | null;
   clientName: string | null;
   errorMessage: string | null;
-  photos: Array<{ id: string; originalName: string; processedPath: string | null; mimeType: string }>;
+  photos: Array<{ id: string; originalName: string; processedPath: string | null; imageData: string | null; mimeType: string }>;
   analysis: object | null;
 }
 

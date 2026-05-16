@@ -25,21 +25,28 @@ function convertHeicToJpeg(file: File): Promise<File> {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1568;
-      let w = img.naturalWidth, h = img.naturalHeight;
-      if (w > MAX || h > MAX) {
-        const s = Math.min(MAX / w, MAX / h);
-        w = Math.round(w * s); h = Math.round(h * s);
+      try {
+        const MAX = 1568;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { reject(new Error(`${file.name}: image decoded with 0 dimensions`)); return; }
+        if (w > MAX || h > MAX) {
+          const s = Math.min(MAX / w, MAX / h);
+          w = Math.round(w * s); h = Math.round(h * s);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas unavailable")); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => blob
+            ? resolve(new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" }))
+            : reject(new Error("Canvas export failed")),
+          "image/jpeg", 0.85
+        );
+      } catch (e) {
+        reject(e);
       }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        (blob) => blob
-          ? resolve(new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" }))
-          : reject(new Error("Canvas export failed")),
-        "image/jpeg", 0.85
-      );
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);

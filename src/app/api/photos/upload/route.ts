@@ -1,36 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processImage, isSupported } from "@/lib/image";
-import type { Photo } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const jobId = formData.get("jobId") as string | null;
-    if (!jobId?.trim()) return NextResponse.json({ error: "jobId required" }, { status: 400 });
+    const form = await req.formData();
+    const jobId = form.get("jobId") as string | null;
+    if (!jobId) return NextResponse.json({ error: "jobId required" }, { status: 400 });
 
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-    const files = formData.getAll("photos") as File[];
-    if (!files.length) return NextResponse.json({ error: "No photos" }, { status: 400 });
-
-    const created: Photo[] = [];
+    const files = form.getAll("photos") as File[];
+    const created = [];
 
     for (const file of files) {
-      const filename = file.name || "photo";
-      if (!isSupported(filename)) continue;
+      if (!isSupported(file.name)) continue;
 
       const buf = Buffer.from(await file.arrayBuffer());
 
-      const photo = await prisma.photo.create({
+      const photo: Awaited<ReturnType<typeof prisma.photo.create>> = await prisma.photo.create({
         data: {
           jobId,
-          originalName: filename,
-          originalPath: "",
+          originalName: file.name,
           mimeType: file.type || "image/jpeg",
           sizeBytes: buf.length,
           sortOrder: created.length,
@@ -42,18 +37,16 @@ export async function POST(req: NextRequest) {
         const processed = await processImage(buf);
         imageData = processed.toString("base64");
       } catch (err) {
-        console.error(`processImage failed for ${filename}:`, err);
+        console.error(`processImage failed for ${file.name}:`, err);
       }
 
-      const updated = await prisma.photo.update({
+      const updated: Awaited<ReturnType<typeof prisma.photo.update>> = await prisma.photo.update({
         where: { id: photo.id },
         data: { processedPath: imageData ? "db" : null, imageData },
       });
-
       created.push(updated);
     }
 
-    await prisma.job.update({ where: { id: jobId }, data: { status: "DRAFT" } });
     return NextResponse.json({ photos: created });
   } catch (err) {
     console.error("Upload error:", err);

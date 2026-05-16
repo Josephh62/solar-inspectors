@@ -1,116 +1,100 @@
-import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { Nav } from "@/components/Nav";
-import { DeleteJobButton } from "@/components/DeleteJobButton";
-import { Plus, ChevronRight, ImageIcon, CheckCircle, Clock, AlertCircle } from "lucide-react";
+"use client";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  DRAFT: { label: "Draft", color: "text-slate-400 bg-slate-800", icon: Clock },
-  UPLOADING: { label: "Uploading", color: "text-blue-400 bg-blue-900/40", icon: Clock },
-  ANALYZING: { label: "Analyzing", color: "text-amber-400 bg-amber-900/40", icon: Clock },
-  REVIEW: { label: "Needs Review", color: "text-yellow-400 bg-yellow-900/40", icon: AlertCircle },
-  GENERATING: { label: "Generating PDF", color: "text-purple-400 bg-purple-900/40", icon: Clock },
-  COMPLETE: { label: "Complete", color: "text-green-400 bg-green-900/40", icon: CheckCircle },
-  ERROR: { label: "Error", color: "text-red-400 bg-red-900/40", icon: AlertCircle },
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Sun, Plus, Trash2, ChevronRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface Job {
+  id: string;
+  address: string | null;
+  clientName: string | null;
+  status: string;
+  createdAt: string;
+  photos: { id: string }[];
+  analysis: { id: string } | null;
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  DRAFT: "bg-slate-700 text-slate-300",
+  ANALYZING: "bg-blue-800 text-blue-200",
+  REVIEW: "bg-amber-800 text-amber-200",
+  GENERATING: "bg-purple-800 text-purple-200",
+  COMPLETE: "bg-green-800 text-green-200",
+  ERROR: "bg-red-800 text-red-200",
 };
 
-export default async function DashboardPage() {
-  const jobs = await prisma.job.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { photos: true } },
-      report: { select: { id: true } },
-    },
-  });
+export default function Dashboard() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadJobs() {
+    const res = await fetch("/api/jobs");
+    if (res.ok) setJobs((await res.json()).jobs);
+    setLoading(false);
+  }
+
+  useEffect(() => { loadJobs(); }, []);
+
+  async function deleteJob(id: string) {
+    if (!confirm("Delete this job and all its photos?")) return;
+    await fetch(`/api/jobs/${id}`, { method: "DELETE" });
+    setJobs((j) => j.filter((x) => x.id !== id));
+    toast.success("Job deleted");
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Nav />
-
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Inspection Jobs</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              {jobs.length} job{jobs.length !== 1 ? "s" : ""} total
-            </p>
-          </div>
-          <Link
-            href="/jobs/new"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Job
-          </Link>
+    <div className="min-h-screen bg-slate-950">
+      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sun className="w-6 h-6 text-amber-400" />
+          <span className="font-semibold text-lg">Solar Inspector</span>
         </div>
+        <Link
+          href="/jobs/new"
+          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+        >
+          <Plus className="w-4 h-4" /> New Inspection
+        </Link>
+      </header>
 
-        {jobs.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ImageIcon className="w-8 h-8 text-slate-500" />
-            </div>
-            <h2 className="text-slate-300 font-medium mb-2">No jobs yet</h2>
-            <p className="text-slate-500 text-sm mb-6">
-              Upload photos to generate your first inspection report
-            </p>
-            <Link
-              href="/jobs/new"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Start New Job
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {jobs.map((job) => {
-              const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.DRAFT;
-              const StatusIcon = cfg.icon;
-              const href =
-                job.status === "REVIEW"
-                  ? `/jobs/${job.id}/review`
-                  : job.status === "COMPLETE"
-                  ? `/jobs/${job.id}/report`
-                  : `/jobs/${job.id}`;
+      <main className="max-w-3xl mx-auto px-6 py-8">
+        <h1 className="text-2xl font-bold mb-6">Inspections</h1>
 
-              return (
-                <div key={job.id} className="flex items-center gap-1">
-                <Link
-                  href={href}
-                  className="flex-1 flex items-center gap-4 p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-600 transition-colors group"
-                >
-                  <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
-                    <span className="text-lg font-bold text-slate-400">
-                      {job._count.photos}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">
-                      {job.address || job.clientName || `Job ${job.id.slice(0, 8)}`}
-                    </p>
-                    <p className="text-slate-400 text-sm truncate">
-                      {job.clientName && job.address ? `${job.clientName} · ` : ""}
-                      {new Date(job.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${cfg.color}`}
-                  >
-                    <StatusIcon className="w-3 h-3" />
-                    {cfg.label}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0" />
-                </Link>
-                <DeleteJobButton jobId={job.id} />
-                </div>
-              );
-            })}
+        {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>}
+
+        {!loading && jobs.length === 0 && (
+          <div className="text-center py-16 text-slate-500">
+            <Sun className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p className="mb-4">No inspections yet</p>
+            <Link href="/jobs/new" className="text-amber-400 hover:text-amber-300 text-sm">Create your first →</Link>
           </div>
         )}
+
+        <div className="space-y-3">
+          {jobs.map((job) => (
+            <div key={job.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+              <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[job.status] ?? "bg-slate-700 text-slate-300"}`}>
+                    {job.status}
+                  </span>
+                  <span className="text-xs text-slate-500">{job.photos.length} photo{job.photos.length !== 1 ? "s" : ""}</span>
+                </div>
+                <p className="font-medium truncate">{job.address || "No address set"}</p>
+                <p className="text-sm text-slate-400 truncate">{job.clientName || "No client"}</p>
+              </Link>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => deleteJob(job.id)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-red-400 transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <Link href={`/jobs/${job.id}`} className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
     </div>
   );

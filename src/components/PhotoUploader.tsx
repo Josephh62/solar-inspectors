@@ -10,17 +10,8 @@ interface Photo {
   originalName: string;
   processedPath: string | null;
   imageData: string | null;
-  mimeType: string;
 }
 
-interface Props {
-  jobId: string;
-  onPhotosChange?: (photos: Photo[]) => void;
-  existingPhotos?: Photo[];
-}
-
-// Convert HEIC → JPEG using the browser's native OS codec (macOS Chrome/Opera/Safari).
-// Resizes to max 1568px so the upload stays well under Netlify's 6 MB limit.
 function convertHeicToJpeg(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -28,122 +19,93 @@ function convertHeicToJpeg(file: File): Promise<File> {
     img.onload = () => {
       URL.revokeObjectURL(url);
       try {
-        if (!img.naturalWidth || !img.naturalHeight) {
-          throw new Error(`${file.name}: image decoded with zero dimensions`);
-        }
+        const { naturalWidth: w, naturalHeight: h } = img;
+        if (!w || !h) throw new Error(`${file.name}: decoded with zero dimensions`);
         const MAX = 1568;
-        let w = img.naturalWidth, h = img.naturalHeight;
-        if (w > MAX || h > MAX) {
-          const s = Math.min(MAX / w, MAX / h);
-          w = Math.round(w * s);
-          h = Math.round(h * s);
-        }
+        const scale = Math.min(MAX / w, MAX / h, 1);
         const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
         const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas 2D context unavailable");
-        ctx.drawImage(img, 0, 0, w, h);
+        if (!ctx) throw new Error("Canvas unavailable");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(
-          (blob) => {
-            if (!blob) { reject(new Error(`${file.name}: canvas export failed`)); return; }
-            resolve(new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" }));
-          },
-          "image/jpeg",
-          0.85
+          (blob) => blob
+            ? resolve(new File([blob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" }))
+            : reject(new Error(`${file.name}: canvas export failed`)),
+          "image/jpeg", 0.85
         );
-      } catch (e) {
-        reject(e);
-      }
+      } catch (e) { reject(e); }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error(
-        `${file.name}: browser can't decode this HEIC file. ` +
-        "Open in Photos → tap Share → Save to Files as JPEG, then re-upload."
-      ));
+      reject(new Error(`${file.name}: browser can't decode this file — open in Photos → Share → Save as JPEG`));
     };
     img.src = url;
   });
 }
 
-async function prepareFile(file: File): Promise<File> {
-  if (/\.(heic|heif)$/i.test(file.name)) return convertHeicToJpeg(file);
-  return file;
+async function prepare(file: File): Promise<File> {
+  return /\.(heic|heif)$/i.test(file.name) ? convertHeicToJpeg(file) : file;
 }
 
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
   const form = new FormData();
   form.append("jobId", jobId);
   form.append("photos", file, file.name);
-
   const res = await fetch("/api/photos/upload", { method: "POST", body: form });
   const ct = res.headers.get("content-type") ?? "";
   if (!ct.includes("application/json")) throw new Error(`Server error (${res.status})`);
-
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+  if (!res.ok) throw new Error(data.error || "Upload failed");
   return data.photos as Photo[];
 }
 
-export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Props) {
-  const [photos, setPhotos] = useState<Photo[]>(existingPhotos);
+interface Props {
+  jobId: string;
+  initialPhotos?: Photo[];
+  onChange?: (photos: Photo[]) => void;
+}
+
+export function PhotoUploader({ jobId, initialPhotos = [], onChange }: Props) {
+  const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState("");
 
-  const updatePhotos = (updated: Photo[]) => {
-    setPhotos(updated);
-    onPhotosChange?.(updated);
-  };
+  function update(next: Photo[]) { setPhotos(next); onChange?.(next); }
 
-  const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      if (!acceptedFiles.length) return;
-      setUploading(true);
+  const onDrop = useCallback(async (files: File[]) => {
+    if (!files.length) return;
+    setUploading(true);
+    let current = [...photos];
+    let ok = 0;
+    const errs: string[] = [];
 
-      let current = [...photos];
-      let successCount = 0;
-      const errors: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setProgress(`Processing ${i + 1} of ${files.length}…`);
+      let ready: File;
+      try { ready = await prepare(file); }
+      catch (e) { errs.push(e instanceof Error ? e.message : `${file.name}: failed`); continue; }
 
-      for (let i = 0; i < acceptedFiles.length; i++) {
-        const file = acceptedFiles[i];
-        setProgress(`Processing ${i + 1} of ${acceptedFiles.length}…`);
-
-        let prepared: File;
-        try {
-          prepared = await prepareFile(file);
-        } catch (err) {
-          errors.push(err instanceof Error ? err.message : `${file.name}: conversion failed`);
-          continue;
-        }
-
-        setProgress(`Uploading ${i + 1} of ${acceptedFiles.length}…`);
-        try {
-          const uploaded = await uploadOne(jobId, prepared);
-          current = [...current, ...uploaded];
-          updatePhotos(current);
-          successCount++;
-        } catch (err) {
-          errors.push(`${file.name}: ${err instanceof Error ? err.message : "upload failed"}`);
-        }
-      }
-
-      setProgress("");
-      setUploading(false);
-      if (successCount > 0) toast.success(`${successCount} photo${successCount !== 1 ? "s" : ""} uploaded`);
-      if (errors.length > 0) toast.error(errors.join("\n"));
-    },
-    [jobId, photos]
-  );
-
-  const removePhoto = async (photoId: string) => {
-    try {
-      await fetch(`/api/photos/${photoId}`, { method: "DELETE" });
-      updatePhotos(photos.filter((p) => p.id !== photoId));
-    } catch {
-      toast.error("Failed to remove photo");
+      setProgress(`Uploading ${i + 1} of ${files.length}…`);
+      try {
+        const uploaded = await uploadOne(jobId, ready);
+        current = [...current, ...uploaded];
+        update(current);
+        ok++;
+      } catch (e) { errs.push(`${file.name}: ${e instanceof Error ? e.message : "failed"}`); }
     }
-  };
+
+    setProgress(""); setUploading(false);
+    if (ok > 0) toast.success(`${ok} photo${ok !== 1 ? "s" : ""} uploaded`);
+    if (errs.length > 0) toast.error(errs.join("\n"));
+  }, [jobId, photos]);
+
+  async function remove(id: string) {
+    await fetch(`/api/photos/${id}`, { method: "DELETE" });
+    update(photos.filter((p) => p.id !== id));
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -155,50 +117,41 @@ export function PhotoUploader({ jobId, onPhotosChange, existingPhotos = [] }: Pr
     <div className="space-y-4">
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-          isDragActive ? "border-blue-500 bg-blue-500/10" : "border-slate-700 hover:border-slate-500 bg-slate-900/50"
-        } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
+          ${isDragActive ? "border-amber-500 bg-amber-500/10" : "border-slate-700 hover:border-slate-500 bg-slate-900/50"}
+          ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center gap-3">
-          {uploading ? <Loader2 className="w-10 h-10 text-blue-400 animate-spin" /> : <Upload className="w-10 h-10 text-slate-500" />}
+          {uploading ? <Loader2 className="w-10 h-10 text-amber-400 animate-spin" /> : <Upload className="w-10 h-10 text-slate-500" />}
           <div>
             <p className="text-slate-300 font-medium">{uploading ? progress || "Uploading…" : "Drop photos here"}</p>
-            <p className="text-slate-500 text-sm mt-1">HEIC · JPEG · PNG · WebP — tap to browse</p>
+            <p className="text-slate-500 text-sm mt-1">HEIC · JPEG · PNG · WebP</p>
           </div>
         </div>
       </div>
 
       {photos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-          {photos.map((photo) => (
-            <div key={photo.id} className="relative group aspect-square">
+          {photos.map((p) => (
+            <div key={p.id} className="relative group aspect-square">
               <div className="w-full h-full rounded-lg overflow-hidden bg-slate-800 border border-slate-700">
-                {photo.processedPath ? (
+                {p.processedPath
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`/api/photos/${photo.id}`} alt={photo.originalName} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-slate-500" />
-                  </div>
-                )}
+                  ? <img src={`/api/photos/${p.id}`} alt={p.originalName} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-6 h-6 text-slate-600" /></div>}
               </div>
               <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 rounded-b-lg">
-                <p className="text-[9px] text-slate-300 truncate">{photo.originalName}</p>
+                <p className="text-[9px] text-slate-300 truncate">{p.originalName}</p>
               </div>
-              <button
-                onClick={() => removePhoto(photo.id)}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
+              <button onClick={() => remove(p.id)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-3 h-3 text-white" />
               </button>
             </div>
           ))}
         </div>
       )}
-      {photos.length > 0 && (
-        <p className="text-xs text-slate-500">{photos.length} photo{photos.length !== 1 ? "s" : ""} added</p>
-      )}
+      {photos.length > 0 && <p className="text-xs text-slate-500">{photos.length} photo{photos.length !== 1 ? "s" : ""}</p>}
     </div>
   );
 }

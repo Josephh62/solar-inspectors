@@ -1,7 +1,7 @@
 import sharp from "sharp";
 
 const MAX_PX = 1568;
-const MAX_BYTES = 450_000; // 450KB → ~600KB base64, safe under Turso's 1MB HTTP limit
+const MAX_BYTES = 450_000; // keeps base64 under Turso's 1 MB HTTP limit
 
 export function isSupported(filename: string): boolean {
   return /\.(jpe?g|png|webp|heic|heif)$/i.test(filename);
@@ -18,6 +18,5 @@ export async function processImage(buffer: Buffer): Promise<Buffer> {
     if (out.length <= MAX_BYTES) break;
     out = await sharp(out).jpeg({ quality: q, progressive: true }).toBuffer();
   }
-
   return out;
 }

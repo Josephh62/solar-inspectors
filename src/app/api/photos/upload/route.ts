@@ -34,16 +34,11 @@ export async function POST(req: NextRequest) {
       });
 
       let imageData: string | null = null;
-      const isRawHeic = /\.(heic|heif)$/i.test(file.name);
-      if (!isRawHeic) {
-        // Only process non-HEIC files — sharp can crash (SIGSEGV) on raw HEIC
-        // HEIC should have been converted to JPEG by the client before upload
-        try {
-          const processed = await processImage(buf);
-          imageData = processed.toString("base64");
-        } catch (err) {
-          console.error(`processImage failed for ${file.name}:`, err);
-        }
+      try {
+        const processed = await processImage(buf);
+        imageData = processed.toString("base64");
+      } catch (err) {
+        console.error(`processImage failed for ${file.name}:`, err);
       }
 
       const updated: Awaited<ReturnType<typeof prisma.photo.update>> = await prisma.photo.update({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { generatePdf } from "@/lib/pdf/generator";
 import type { Analysis } from "@/lib/claude";
@@ -24,14 +25,28 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ jo
       ? new Date(job.inspectionDate).toLocaleDateString("en-US")
       : (analysis.inspection_date ?? new Date().toLocaleDateString("en-US"));
 
-    const photos = job.photos
-      .filter((p) => !!p.imageData)
-      .map((p) => ({
-        dataUri: `data:image/jpeg;base64,${p.imageData}`,
-        originalName: p.originalName,
-        description: p.aiDescription,
-        category: p.category,
-      }));
+    // Re-compress photos to 800px for PDF — full 1568px is unnecessary and makes
+    // @react-pdf/renderer extremely slow (minutes vs seconds)
+    const photos = await Promise.all(
+      job.photos
+        .filter((p) => !!p.imageData)
+        .map(async (p) => {
+          let dataUri = `data:image/jpeg;base64,${p.imageData}`;
+          try {
+            const small = await sharp(Buffer.from(p.imageData!, "base64"))
+              .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+              .jpeg({ quality: 70 })
+              .toBuffer();
+            dataUri = `data:image/jpeg;base64,${small.toString("base64")}`;
+          } catch { /* use original if re-compression fails */ }
+          return {
+            dataUri,
+            originalName: p.originalName,
+            description: p.aiDescription,
+            category: p.category,
+          };
+        })
+    );
 
     const pdf = await generatePdf({
       address: job.address || analysis.project_address || "",

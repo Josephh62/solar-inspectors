@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["sharp", "heic-decode"],
+  serverExternalPackages: ["sharp"],
 };
 
 export default nextConfig;

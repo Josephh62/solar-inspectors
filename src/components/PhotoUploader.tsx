@@ -14,7 +14,9 @@ interface Photo {
 
 function convertHeicToJpeg(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+    // Force "image/heic" so browsers with the OS codec (macOS) can decode it
+    const blob = new Blob([file], { type: "image/heic" });
+    const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);

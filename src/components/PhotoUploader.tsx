@@ -47,20 +47,32 @@ function convertHeicToJpeg(file: File): Promise<File> {
   });
 }
 
+async function convertHeicViaWasm(file: File): Promise<File> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod = await import("heic2any") as any;
+  // heic2any is a UMD/CJS module — the function may be at .default or the root
+  const convert = (typeof mod.default === "function" ? mod.default : mod) as (
+    opts: { blob: Blob; toType: string; quality: number }
+  ) => Promise<Blob | Blob[]>;
+
+  const inputBlob = new Blob([file], { type: "image/heic" });
+  const result = await convert({ blob: inputBlob, toType: "image/jpeg", quality: 0.85 });
+  const outputBlob = Array.isArray(result) ? result[0] : result;
+  return new File([outputBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 async function prepare(file: File): Promise<File> {
   if (!/\.(heic|heif)$/i.test(file.name)) return file;
 
-  // Try canvas first (uses macOS OS HEIC codec — fast when browser supports it)
-  try { return await convertHeicToJpeg(file); } catch { /* fall through to server */ }
+  // Stage 1: canvas via OS HEIC codec (fast, works on macOS browsers that support HEIC)
+  try { return await convertHeicToJpeg(file); } catch { /* try WASM */ }
 
-  // Canvas can't decode this HEIC — send raw to server where heic-decode WASM will handle it
-  if (file.size > 5.5 * 1024 * 1024) {
-    throw new Error(
-      `${file.name} (${Math.round(file.size / 1024 / 1024)}MB) is too large to upload. ` +
-      "Open in Photos → Share → Save to Files as JPEG, then re-upload."
-    );
-  }
-  return file;
+  // Stage 2: heic2any WASM — handles HEVC/H.265 HEIC that the OS codec rejects
+  try { return await convertHeicViaWasm(file); } catch { /* fall through */ }
+
+  throw new Error(
+    `${file.name}: couldn't convert HEIC. Open in Photos → Share → Save to Files as JPEG, then re-upload.`
+  );
 }
 
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {

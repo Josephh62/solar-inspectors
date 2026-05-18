@@ -46,7 +46,18 @@ function convertHeicToJpeg(file: File): Promise<File> {
 }
 
 async function prepare(file: File): Promise<File> {
-  return /\.(heic|heif)$/i.test(file.name) ? convertHeicToJpeg(file) : file;
+  if (!/\.(heic|heif)$/i.test(file.name)) return file;
+  try {
+    return await convertHeicToJpeg(file);
+  } catch {
+    // Canvas couldn't decode it — try sending raw to server (sharp handles it)
+    // if small enough for Netlify's 6 MB request limit.
+    if (file.size < 5 * 1024 * 1024) return file;
+    throw new Error(
+      `${file.name} (${Math.round(file.size / 1024 / 1024)}MB) is too large to process in this browser. ` +
+      "Open in Photos → Share → Save to Files as JPEG, then re-upload."
+    );
+  }
 }
 
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
@@ -83,7 +94,10 @@ export function PhotoUploader({ jobId, initialPhotos = [], onChange }: Props) {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      setProgress(`Processing ${i + 1} of ${files.length}…`);
+      const isHeic = /\.(heic|heif)$/i.test(file.name);
+      setProgress(isHeic
+        ? `Converting HEIC photo ${i + 1} of ${files.length}…`
+        : `Processing ${i + 1} of ${files.length}…`);
       let ready: File;
       try { ready = await prepare(file); }
       catch (e) { errs.push(e instanceof Error ? e.message : `${file.name}: failed`); continue; }

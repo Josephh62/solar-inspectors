@@ -48,21 +48,17 @@ function convertHeicToJpeg(file: File): Promise<File> {
 async function prepare(file: File): Promise<File> {
   if (!/\.(heic|heif)$/i.test(file.name)) return file;
 
-  // Stage 1: canvas via OS HEIC codec (fast, works for most HEIC on macOS)
-  try { return await convertHeicToJpeg(file); } catch { /* try next */ }
+  // Try canvas first (uses macOS OS HEIC codec — fast when browser supports it)
+  try { return await convertHeicToJpeg(file); } catch { /* fall through to server */ }
 
-  // Stage 2: heic2any WASM (handles HEVC variant that the OS codec misses)
-  try {
-    const { default: heic2any } = await import("heic2any");
-    const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 }) as Blob;
-    const out = Array.isArray(blob) ? blob[0] : blob;
-    return new File([out], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-  } catch { /* fall through */ }
-
-  // Both converters failed — ask user to export manually
-  throw new Error(
-    `${file.name}: couldn't convert HEIC — open in Photos → Share → Save to Files as JPEG, then re-upload.`
-  );
+  // Canvas can't decode this HEIC — send raw to server where heic-decode WASM will handle it
+  if (file.size > 5.5 * 1024 * 1024) {
+    throw new Error(
+      `${file.name} (${Math.round(file.size / 1024 / 1024)}MB) is too large to upload. ` +
+      "Open in Photos → Share → Save to Files as JPEG, then re-upload."
+    );
+  }
+  return file;
 }
 
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {

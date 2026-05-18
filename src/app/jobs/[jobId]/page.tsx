@@ -90,15 +90,20 @@ export default function JobPage() {
 
         <button
           onClick={analyze}
-          disabled={isAnalyzing || !job.photos.some((p) => p.processedPath)}
+          disabled={isAnalyzing || !job.photos.some((p) => p.imageData)}
           className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-black font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           {isAnalyzing
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing with AI…</>
             : <><Zap className="w-5 h-5" /> Analyze Photos</>}
         </button>
-        {!job.photos.some((p) => p.processedPath) && (
-          <p className="text-center text-sm text-slate-500">Upload photos before analyzing</p>
+        {job.photos.length === 0 && (
+          <p className="text-center text-sm text-slate-500">Upload photos to get started</p>
+        )}
+        {job.photos.length > 0 && !job.photos.some((p) => p.imageData) && (
+          <p className="text-center text-sm text-slate-500">
+            Photos didn&apos;t process — delete them (✕) and re-upload
+          </p>
         )}
       </main>
     </div>

@@ -44,8 +44,10 @@ export default function JobPage() {
       const d = await res.json().catch(() => ({}));
       toast.error(d.error || "Analysis failed");
       setAnalyzing(false);
+      return;
     }
-    // poll will catch status change
+    // Refresh job — status is now REVIEW, which triggers the redirect useEffect
+    load();
   }
 
   if (!job) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;

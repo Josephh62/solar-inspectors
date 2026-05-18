@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         data: {
           jobId,
           originalName: file.name,
+          originalPath: "",
           mimeType: file.type || "image/jpeg",
           sizeBytes: buf.length,
           sortOrder: created.length,

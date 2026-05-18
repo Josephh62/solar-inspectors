@@ -37,6 +37,7 @@ model Photo {
   jobId         String
   job           Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
   originalName  String
+  originalPath  String         @default("")
   mimeType      String
   sizeBytes     Int
   imageData     String?

@@ -20,16 +20,6 @@ export async function POST(req: NextRequest) {
     for (const file of files) {
       if (!isSupported(file.name)) continue;
 
-      // Raw HEIC reaching the server means canvas failed on the client.
-      // Sharp crashes (SIGSEGV) on certain HEIC variants — return a clear JSON
-      // error instead of letting the Lambda die and return a non-JSON 500.
-      if (/\.(heic|heif)$/i.test(file.name)) {
-        return NextResponse.json(
-          { error: `${file.name}: couldn't convert — open in Photos → tap Share → Save to Files as JPEG, then re-upload` },
-          { status: 422 }
-        );
-      }
-
       const buf = Buffer.from(await file.arrayBuffer());
 
       const photo: Awaited<ReturnType<typeof prisma.photo.create>> = await prisma.photo.create({

@@ -47,17 +47,22 @@ function convertHeicToJpeg(file: File): Promise<File> {
 
 async function prepare(file: File): Promise<File> {
   if (!/\.(heic|heif)$/i.test(file.name)) return file;
+
+  // Stage 1: canvas via OS HEIC codec (fast, works for most HEIC on macOS)
+  try { return await convertHeicToJpeg(file); } catch { /* try next */ }
+
+  // Stage 2: heic2any WASM (handles HEVC variant that the OS codec misses)
   try {
-    return await convertHeicToJpeg(file);
-  } catch {
-    // Canvas couldn't decode it — try sending raw to server (sharp handles it)
-    // if small enough for Netlify's 6 MB request limit.
-    if (file.size < 5 * 1024 * 1024) return file;
-    throw new Error(
-      `${file.name} (${Math.round(file.size / 1024 / 1024)}MB) is too large to process in this browser. ` +
-      "Open in Photos → Share → Save to Files as JPEG, then re-upload."
-    );
-  }
+    const { default: heic2any } = await import("heic2any");
+    const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 }) as Blob;
+    const out = Array.isArray(blob) ? blob[0] : blob;
+    return new File([out], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+  } catch { /* fall through */ }
+
+  // Both converters failed — ask user to export manually
+  throw new Error(
+    `${file.name}: couldn't convert HEIC — open in Photos → Share → Save to Files as JPEG, then re-upload.`
+  );
 }
 
 async function uploadOne(jobId: string, file: File): Promise<Photo[]> {
@@ -96,20 +101,13 @@ export function PhotoUploader({ jobId, initialPhotos = [], onChange }: Props) {
       const file = files[i];
       const isHeic = /\.(heic|heif)$/i.test(file.name);
       setProgress(isHeic
-        ? `Converting HEIC photo ${i + 1} of ${files.length}…`
+        ? `Converting HEIC ${i + 1} of ${files.length}… (may take a moment)`
         : `Processing ${i + 1} of ${files.length}…`);
       let ready: File;
       try { ready = await prepare(file); }
       catch (e) { errs.push(e instanceof Error ? e.message : `${file.name}: failed`); continue; }
 
       setProgress(`Uploading ${i + 1} of ${files.length}…`);
-      if (ready.size > 5.5 * 1024 * 1024) {
-        errs.push(
-          `${file.name} (${Math.round(ready.size / 1024 / 1024)}MB) is too large to upload. ` +
-          "Open in Photos → Share → Save to Files as JPEG, then re-upload."
-        );
-        continue;
-      }
       try {
         const uploaded = await uploadOne(jobId, ready);
         current = [...current, ...uploaded];

@@ -46,7 +46,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ jo
     if (existing) {
       await prisma.report.update({ where: { jobId }, data: { pdfSizeBytes: pdf.length } });
     } else {
-      await prisma.report.create({ data: { jobId, pdfSizeBytes: pdf.length } });
+      await prisma.report.create({
+        data: { jobId, pdfSizeBytes: pdf.length, pdfPath: "", templateSnapshot: {} },
+      });
     }
 
     await prisma.job.update({ where: { id: jobId }, data: { status: "COMPLETE" } });

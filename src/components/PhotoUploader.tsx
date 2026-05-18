@@ -103,7 +103,7 @@ export function PhotoUploader({ jobId, initialPhotos = [], onChange }: Props) {
       catch (e) { errs.push(e instanceof Error ? e.message : `${file.name}: failed`); continue; }
 
       setProgress(`Uploading ${i + 1} of ${files.length}…`);
-      if (ready.size > 4.5 * 1024 * 1024) {
+      if (ready.size > 5.5 * 1024 * 1024) {
         errs.push(
           `${file.name} (${Math.round(ready.size / 1024 / 1024)}MB) is too large to upload. ` +
           "Open in Photos → Share → Save to Files as JPEG, then re-upload."

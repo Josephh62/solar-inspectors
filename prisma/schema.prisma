@@ -71,9 +71,11 @@ model Analysis {
 }
 
 model Report {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-  jobId        String   @unique
-  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  pdfSizeBytes Int?
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  jobId            String   @unique
+  job              Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  pdfPath          String   @default("")
+  pdfSizeBytes     Int?
+  templateSnapshot Json
 }

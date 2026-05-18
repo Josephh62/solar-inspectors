@@ -43,8 +43,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ jo
     });
 
     const existing = await prisma.report.findUnique({ where: { jobId } });
-    if (existing) await prisma.report.update({ where: { jobId }, data: { pdfSizeBytes: pdf.length } });
-    else await prisma.report.create({ data: { jobId, pdfSizeBytes: pdf.length } });
+    if (existing) {
+      await prisma.report.update({ where: { jobId }, data: { pdfSizeBytes: pdf.length } });
+    } else {
+      await prisma.report.create({ data: { jobId, pdfSizeBytes: pdf.length } });
+    }
 
     await prisma.job.update({ where: { id: jobId }, data: { status: "COMPLETE" } });
 

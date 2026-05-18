@@ -61,9 +61,16 @@ export default function ReviewPage() {
 
   async function generatePdf() {
     setGenerating(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 110_000);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/report`, { method: "POST" });
-      if (!res.ok) { toast.error((await res.json()).error || "Failed"); return; }
+      const res = await fetch(`/api/jobs/${jobId}/report`, { method: "POST", signal: controller.signal });
+      if (!res.ok) {
+        let msg = "PDF generation failed";
+        try { msg = (await res.json()).error || msg; } catch { /* non-JSON error body */ }
+        toast.error(msg);
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -71,7 +78,15 @@ export default function ReviewPage() {
       a.click(); URL.revokeObjectURL(url);
       toast.success("Report downloaded!");
       load();
-    } finally { setGenerating(false); }
+    } catch (err) {
+      const msg = err instanceof Error && err.name === "AbortError"
+        ? "Report generation timed out — try again"
+        : "Network error generating report";
+      toast.error(msg);
+    } finally {
+      clearTimeout(timeout);
+      setGenerating(false);
+    }
   }
 
   if (!job) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;

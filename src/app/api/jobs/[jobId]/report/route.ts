@@ -21,7 +21,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ jo
   try {
     const analysis = job.analysis.reviewedData as unknown as Analysis;
     const inspectionDate = job.inspectionDate
-      ? job.inspectionDate.toLocaleDateString("en-US")
+      ? new Date(job.inspectionDate).toLocaleDateString("en-US")
       : (analysis.inspection_date ?? new Date().toLocaleDateString("en-US"));
 
     const photos = job.photos

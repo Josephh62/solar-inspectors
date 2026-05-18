@@ -56,7 +56,14 @@ export default function JobPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
+      {/* Full-width progress bar — visible on mobile and desktop while analyzing */}
+      {isAnalyzing && (
+        <div className="fixed top-0 inset-x-0 z-50 h-1 overflow-hidden bg-slate-900">
+          <div className="h-full w-full bg-gradient-to-r from-amber-600 via-amber-300 to-amber-600 animate-pulse" />
+        </div>
+      )}
+
+      <header className={`border-b border-slate-800 px-6 py-4 flex items-center gap-4 ${isAnalyzing ? "mt-1" : ""}`}>
         <Link href="/" className="text-slate-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold truncate">{job.address || "Untitled Inspection"}</h1>
@@ -65,6 +72,16 @@ export default function JobPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+        {isAnalyzing && (
+          <div className="bg-slate-900 border border-amber-800/40 rounded-xl p-5 flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
+            <p className="font-medium text-amber-300">Analyzing photos with AI…</p>
+            <p className="text-sm text-slate-400 text-center">This usually takes 30–60 seconds. Don&apos;t close this page.</p>
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden mt-1">
+              <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400 animate-pulse" style={{ width: "70%" }} />
+            </div>
+          </div>
+        )}
         {job.status === "ERROR" && job.errorMessage && (
           <div className="bg-red-950 border border-red-800 rounded-xl p-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />

@@ -48,7 +48,7 @@ export default function Dashboard() {
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sun className="w-6 h-6 text-amber-400" />
-          <span className="font-semibold text-lg">Solar Inspector</span>
+          <span className="font-semibold text-lg">AVAX</span>
         </div>
         <Link
           href="/jobs/new"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Zap, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import { PhotoUploader } from "@/components/PhotoUploader";
@@ -17,7 +17,6 @@ interface Job {
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
-  const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -32,9 +31,6 @@ export default function JobPage() {
     const t = setInterval(load, 3000);
     return () => clearInterval(t);
   }, [job?.status, load]);
-  useEffect(() => {
-    if (job?.status === "REVIEW") router.push(`/jobs/${jobId}/review`);
-  }, [job?.status, jobId, router]);
 
   async function analyze() {
     setAnalyzing(true);

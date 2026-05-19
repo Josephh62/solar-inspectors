@@ -87,19 +87,20 @@ function SwipeableCard({
       className="relative rounded-2xl overflow-hidden select-none"
       onMouseLeave={handleMouseLeave}
     >
-      {/* Delete button — revealed on the right */}
+      {/* Delete button — sits at right edge, revealed when card slides left */}
       <div
-        className="absolute right-0 inset-y-0 w-20 bg-red-600 hover:bg-red-500 active:bg-red-700
+        className="absolute right-0 inset-y-0 w-20 bg-white/10 hover:bg-white/16 active:bg-white/20
                    flex flex-col items-center justify-center gap-1 rounded-r-2xl
-                   cursor-pointer transition-colors duration-150"
+                   cursor-pointer transition-colors duration-150 border-l border-white/8"
         onClick={onDelete}
       >
         <Trash2 className="w-4 h-4 text-white" />
-        <span className="text-white text-[10px] font-bold tracking-wide">Delete</span>
+        <span className="text-white text-[10px] font-semibold tracking-wide">Delete</span>
       </div>
 
-      {/* Card content */}
+      {/* Card content — sits above the delete button via z-index + matching bg */}
       <div
+        className="relative z-[1] bg-[#060c18]"
         style={{
           transform: `translateX(-${offset}px)`,
           transition: sliding ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
@@ -258,7 +259,7 @@ export default function Dashboard() {
               })}
             </div>
 
-            <p className="text-center text-xs text-slate-700 mt-6">Swipe left on a report to delete</p>
+            <p className="text-center text-xs text-slate-800 mt-6">Swipe left to delete</p>
           </main>
         )}
 

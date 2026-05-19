@@ -98,10 +98,10 @@ export function AppFooter() {
 
 export const darkBtn = [
   "inline-flex items-center gap-2 bg-[#060c18] text-white font-semibold px-4 py-2 rounded-lg text-sm",
-  "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 active:translate-y-0",
+  "transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/25 active:scale-[0.96] active:translate-y-0",
 ].join(" ");
 
 export const outlineBtn = [
   "inline-flex items-center gap-1.5 text-slate-500 hover:text-[#060c18] font-medium px-3 py-2 rounded-lg text-sm",
-  "border border-black/12 hover:border-black/25 transition-all duration-200 hover:bg-black/3",
+  "border border-black/12 hover:border-black/25 transition-all duration-150 hover:bg-black/3 active:scale-[0.96]",
 ].join(" ");

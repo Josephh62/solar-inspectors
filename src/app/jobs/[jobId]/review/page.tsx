@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { FileDown, Loader2, ChevronDown, ChevronUp, Check, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppHeader, AppFooter, darkBtn } from "@/components/AppShell";
+import { haptic } from "@/lib/haptic";
 
 interface Analysis {
   project_name: string | null;
@@ -269,6 +270,7 @@ export default function ReviewPage() {
 
   async function save(): Promise<boolean> {
     if (!draft) return true;
+    haptic("light");
     setSaving(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, {

@@ -8,3 +8,34 @@
 html, body {
   background-color: #060c18;
 }
+
+/* ── Page entrance animation ─────────────────────────────────────────────── */
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: pageEnter 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Button / tap feel ───────────────────────────────────────────────────── */
+
+/* All buttons and links shrink slightly on press — gives tactile weight on mobile */
+button:not(:disabled):active,
+a:active {
+  transform: scale(0.97);
+  transition: transform 0.08s ease-out;
+}
+
+/* Prevent double-transform fighting with Tailwind hover utilities */
+button:not(:disabled):hover:active,
+a:hover:active {
+  transform: scale(0.97) translateY(0);
+}
+
+/* Faster transition-all so press response feels instant */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

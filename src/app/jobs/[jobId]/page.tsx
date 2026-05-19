@@ -7,6 +7,7 @@ import { Zap, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import { PhotoUploader } from "@/components/PhotoUploader";
 import { AppHeader, AppFooter } from "@/components/AppShell";
 import { toast } from "sonner";
+import { haptic } from "@/lib/haptic";
 
 interface Job {
   id: string; status: string; address: string | null; clientName: string | null;
@@ -33,6 +34,7 @@ export default function JobPage() {
   }, [job?.status, load]);
 
   async function analyze() {
+    haptic("medium");
     setAnalyzing(true);
     const res = await fetch(`/api/jobs/${jobId}/analyze`, { method: "POST" });
     if (!res.ok) {

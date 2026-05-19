@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Trash2, ChevronRight, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { AppHeader, AppFooter, darkBtn } from "@/components/AppShell";
+import { haptic } from "@/lib/haptic";
 
 interface Job {
   id: string;
@@ -136,6 +137,7 @@ export default function Dashboard() {
   useEffect(() => { loadJobs(); }, []);
 
   async function deleteJob(id: string) {
+    haptic("medium");
     setDeleting(id);
     // let the height-collapse animation play first
     await new Promise((r) => setTimeout(r, 260));

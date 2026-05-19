@@ -84,23 +84,23 @@ function SwipeableCard({
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden select-none"
+      className="relative select-none"
       onMouseLeave={handleMouseLeave}
     >
-      {/* Delete button — sits at right edge, revealed when card slides left */}
+      {/* Delete button — fully rounded, revealed when card slides left */}
       <div
         className="absolute right-0 inset-y-0 w-20 bg-white/10 hover:bg-white/16 active:bg-white/20
-                   flex flex-col items-center justify-center gap-1 rounded-r-2xl
-                   cursor-pointer transition-colors duration-150 border-l border-white/8"
+                   flex flex-col items-center justify-center gap-1 rounded-2xl
+                   cursor-pointer transition-colors duration-150"
         onClick={onDelete}
       >
         <Trash2 className="w-4 h-4 text-white" />
         <span className="text-white text-[10px] font-semibold tracking-wide">Delete</span>
       </div>
 
-      {/* Card content — sits above the delete button via z-index + matching bg */}
+      {/* Card content — own rounded corners so it cleanly separates from delete button */}
       <div
-        className="relative z-[1] bg-[#060c18]"
+        className="relative z-[1] bg-[#060c18] rounded-2xl"
         style={{
           transform: `translateX(-${offset}px)`,
           transition: sliding ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",

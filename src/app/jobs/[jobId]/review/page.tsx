@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { FileDown, Loader2, ChevronDown, ChevronUp, Check, Plus, Trash2 } from "lucide-react";
+import { FileDown, Loader2, ChevronDown, ChevronUp, Check, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppHeader, AppFooter, darkBtn } from "@/components/AppShell";
 
@@ -148,6 +148,96 @@ function normalize(data: Analysis): Analysis {
   };
 }
 
+// ── Template picker ───────────────────────────────────────────────────────────
+
+type TemplateId = "sungreen" | "avax" | "cleanpro";
+
+const TEMPLATES: { id: TemplateId; name: string; tag: string; header: string; accent: string; body: string }[] = [
+  { id: "sungreen", name: "SunGreen",     tag: "Original branded",   header: "#5c6b2e", accent: "#c0392b", body: "#ffffff" },
+  { id: "avax",     name: "AVAX Dark",    tag: "Modern dark cover",  header: "#060c18", accent: "#94a3b8", body: "#060c18" },
+  { id: "cleanpro", name: "Clean Pro",    tag: "Neutral corporate",  header: "#1d4ed8", accent: "#dbeafe", body: "#ffffff" },
+];
+
+function TemplateMiniPage({ header, accent, body }: { header: string; accent: string; body: string }) {
+  return (
+    <div className="w-full aspect-[8.5/11] rounded-lg overflow-hidden border border-white/10 shadow-lg" style={{ backgroundColor: body }}>
+      <div className="h-[14%]" style={{ backgroundColor: header }} />
+      <div className="px-[8%] py-[5%] space-y-[4%]">
+        {[70, 55, 85, 50, 65].map((w, i) => (
+          <div key={i} className="h-[4%] rounded-full opacity-20" style={{ width: `${w}%`, backgroundColor: header }} />
+        ))}
+        <div className="h-[3%] rounded-full opacity-30 mt-[6%]" style={{ width: "40%", backgroundColor: accent }} />
+        {[60, 45].map((w, i) => (
+          <div key={i} className="h-[3%] rounded-full opacity-15" style={{ width: `${w}%`, backgroundColor: header }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TemplatePicker({ onSelect, onClose, generating }: {
+  onSelect: (t: TemplateId) => void;
+  onClose: () => void;
+  generating: boolean;
+}) {
+  const [selected, setSelected] = useState<TemplateId>("sungreen");
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Sheet */}
+      <div className="relative z-[1] w-full sm:max-w-lg bg-[#0d1526] border border-white/10 rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="font-bold text-lg tracking-tight">Choose a template</h2>
+            <p className="text-slate-500 text-sm mt-0.5">Select a style for your PDF report</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/8 transition-all duration-150">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Template cards */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setSelected(t.id)}
+              className={`flex flex-col gap-2 p-2 rounded-xl border transition-all duration-150 text-left
+                          ${selected === t.id
+                            ? "border-white/40 bg-white/8 ring-1 ring-white/20"
+                            : "border-white/8 hover:border-white/20 hover:bg-white/4"}`}
+            >
+              <TemplateMiniPage header={t.header} accent={t.accent} body={t.body} />
+              <div className="px-0.5">
+                <p className="font-semibold text-xs text-white truncate">{t.name}</p>
+                <p className="text-[10px] text-slate-500 truncate">{t.tag}</p>
+              </div>
+              {selected === t.id && (
+                <div className="absolute top-2 right-2 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-[#060c18]" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => onSelect(selected)}
+          disabled={generating}
+          className="w-full flex items-center justify-center gap-2 bg-white text-[#060c18] font-bold py-3.5 rounded-xl text-sm
+                     transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-white/20 active:translate-y-0
+                     disabled:opacity-50 disabled:translate-y-0"
+        >
+          {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><FileDown className="w-4 h-4" /> Download PDF</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function ReviewPage() {
@@ -156,6 +246,7 @@ export default function ReviewPage() {
   const [draft, setDraft]     = useState<Analysis | null>(null);
   const [saving, setSaving]   = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -193,7 +284,8 @@ export default function ReviewPage() {
 
   // ── PDF ───────────────────────────────────────────────────────────────────
 
-  async function generatePdf() {
+  async function generatePdf(template: TemplateId) {
+    setShowTemplates(false);
     // Auto-save unsaved changes before generating
     if (isDirty) {
       const ok = await save();
@@ -203,7 +295,12 @@ export default function ReviewPage() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 110_000);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/report`, { method: "POST", signal: controller.signal });
+      const res = await fetch(`/api/jobs/${jobId}/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template }),
+        signal: controller.signal,
+      });
       if (!res.ok) {
         let msg = "PDF generation failed";
         try { msg = (await res.json()).error || msg; } catch { /**/ }
@@ -277,7 +374,7 @@ export default function ReviewPage() {
         subCrumb={job.clientName ?? undefined}
         actions={
           <button
-            onClick={generatePdf}
+            onClick={() => setShowTemplates(true)}
             disabled={generating || saving}
             className={darkBtn}
           >
@@ -372,6 +469,15 @@ export default function ReviewPage() {
 
         <AppFooter />
       </div>
+
+      {/* ── Template picker modal ── */}
+      {showTemplates && (
+        <TemplatePicker
+          onSelect={generatePdf}
+          onClose={() => setShowTemplates(false)}
+          generating={generating}
+        />
+      )}
 
       {/* ── Floating save bar — appears when there are unsaved changes ── */}
       <div

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
-import { generatePdf } from "@/lib/pdf/generator";
+import { generatePdf, type TemplateId } from "@/lib/pdf/generator";
 import type { Analysis } from "@/lib/claude";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = await params;
+  const body = await req.json().catch(() => ({}));
+  const template = (body.template ?? "sungreen") as TemplateId;
 
   const job = await prisma.job.findUnique({
     where: { id: jobId },
@@ -55,7 +57,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ jo
       inspectionDate,
       analysis,
       photos,
-    });
+    }, template);
 
     const existing = await prisma.report.findUnique({ where: { jobId } });
     if (existing) {

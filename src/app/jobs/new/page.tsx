@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppHeader, AppFooter, darkBtn } from "@/components/AppShell";
 
 export default function NewJobPage() {
@@ -21,7 +22,10 @@ export default function NewJobPage() {
     if (res.ok) {
       const { job } = await res.json();
       router.push(`/jobs/${job.id}`);
+    } else if (res.status === 401) {
+      router.push("/sign-in");
     } else {
+      toast.error("Failed to create report — try again");
       setSaving(false);
     }
   }

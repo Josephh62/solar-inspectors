@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { AvaxLogo } from "@/components/AvaxLogo";
 
 function AppleLogo() {
@@ -23,6 +24,23 @@ function GoogleLogo() {
 }
 
 export default function SignInPage() {
+  const [providers, setProviders] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/providers")
+      .then((r) => r.json())
+      .then((data) => {
+        setProviders(data ? Object.keys(data) : []);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  const hasApple  = providers.includes("apple");
+  const hasGoogle = providers.includes("google");
+  const none      = loaded && !hasApple && !hasGoogle;
+
   return (
     <div className="min-h-screen bg-[#060c18] flex flex-col items-center justify-center px-6">
 
@@ -39,29 +57,50 @@ export default function SignInPage() {
           Access your inspection reports
         </p>
 
-        <div className="space-y-3">
-          {/* Sign in with Apple */}
-          <button
-            onClick={() => signIn("apple", { callbackUrl: "/dashboard" })}
-            className="w-full flex items-center justify-center gap-3 bg-white text-[#060c18] font-semibold
-                       px-5 py-3.5 rounded-xl text-sm transition-all duration-200
-                       hover:-translate-y-0.5 hover:shadow-xl hover:shadow-white/20 active:translate-y-0"
-          >
-            <AppleLogo />
-            Sign in with Apple
-          </button>
+        {none && (
+          <div className="bg-amber-950/60 border border-amber-800/60 rounded-xl p-4 text-center">
+            <p className="text-amber-300 text-sm font-semibold mb-1">Auth not configured</p>
+            <p className="text-amber-500 text-xs leading-relaxed">
+              Add <code className="bg-amber-950 px-1 rounded">GOOGLE_CLIENT_ID</code> and{" "}
+              <code className="bg-amber-950 px-1 rounded">GOOGLE_CLIENT_SECRET</code> to your Netlify environment variables to enable sign-in.
+            </p>
+          </div>
+        )}
 
-          {/* Sign in with Google */}
-          <button
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="w-full flex items-center justify-center gap-3 bg-white/6 border border-white/12 text-white font-semibold
-                       px-5 py-3.5 rounded-xl text-sm transition-all duration-200
-                       hover:-translate-y-0.5 hover:bg-white/10 hover:border-white/20 active:translate-y-0"
-          >
-            <GoogleLogo />
-            Sign in with Google
-          </button>
-        </div>
+        {!loaded && (
+          <div className="space-y-3">
+            <div className="w-full h-12 bg-white/5 rounded-xl animate-pulse" />
+            <div className="w-full h-12 bg-white/5 rounded-xl animate-pulse" />
+          </div>
+        )}
+
+        {loaded && !none && (
+          <div className="space-y-3">
+            {hasApple && (
+              <button
+                onClick={() => signIn("apple", { callbackUrl: "/dashboard" })}
+                className="w-full flex items-center justify-center gap-3 bg-white text-[#060c18] font-semibold
+                           px-5 py-3.5 rounded-xl text-sm transition-all duration-200
+                           hover:-translate-y-0.5 hover:shadow-xl hover:shadow-white/20 active:translate-y-0"
+              >
+                <AppleLogo />
+                Sign in with Apple
+              </button>
+            )}
+
+            {hasGoogle && (
+              <button
+                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                className="w-full flex items-center justify-center gap-3 bg-white/6 border border-white/12 text-white font-semibold
+                           px-5 py-3.5 rounded-xl text-sm transition-all duration-200
+                           hover:-translate-y-0.5 hover:bg-white/10 hover:border-white/20 active:translate-y-0"
+              >
+                <GoogleLogo />
+                Sign in with Google
+              </button>
+            )}
+          </div>
+        )}
 
         <p className="text-center text-xs text-slate-700 mt-8">
           By signing in you agree to our terms of service

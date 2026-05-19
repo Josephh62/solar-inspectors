@@ -93,6 +93,61 @@ function Sub({ label }: { label: string }) {
   );
 }
 
+// ── Fill blanks left by the AI with sensible defaults ─────────────────────────
+
+function normalize(data: Analysis): Analysis {
+  function d(v: string | null | undefined, fallback: string): string {
+    if (!v || v === "NONE" || v === "Not visible in provided photos") return fallback;
+    return v;
+  }
+  const vi = data.visual_inspection;
+  return {
+    ...data,
+    visual_inspection: {
+      modules: {
+        damage:        d(vi.modules.damage,        "None observed"),
+        discoloration: d(vi.modules.discoloration, "None observed"),
+        delamination:  d(vi.modules.delamination,  "None observed"),
+        soiling:       d(vi.modules.soiling,       "None observed"),
+        results:       d(vi.modules.results,       "Pass"),
+      },
+      mounting_system: {
+        damage:    d(vi.mounting_system.damage,    "None observed"),
+        corrosion: d(vi.mounting_system.corrosion, "None observed"),
+        results:   d(vi.mounting_system.results,   "Pass"),
+      },
+      inverters: {
+        loose_connections: d(vi.inverters.loose_connections, "None observed"),
+        faults:            d(vi.inverters.faults,            "None observed"),
+        results:           d(vi.inverters.results,           "Pass"),
+      },
+      shading: {
+        tree_growth:      d(vi.shading.tree_growth,      "None observed"),
+        new_construction: d(vi.shading.new_construction, "None observed"),
+        results:          d(vi.shading.results,          "No significant shading"),
+      },
+      follow_up_items: vi.follow_up_items ?? [],
+    },
+    electrical_analysis: {
+      inverter_numbers: d(data.electrical_analysis.inverter_numbers, "N/A"),
+      amps:             d(data.electrical_analysis.amps,             "N/A"),
+      volts:            d(data.electrical_analysis.volts,            "N/A"),
+      fuses:            d(data.electrical_analysis.fuses,            "N/A"),
+      inverter_result:  d(data.electrical_analysis.inverter_result,  "N/A"),
+      string_result:    d(data.electrical_analysis.string_result,    "N/A"),
+    },
+    system_specs: {
+      module_count:     d(data.system_specs.module_count,     "N/A"),
+      module_watts:     d(data.system_specs.module_watts,     "N/A"),
+      module_brand:     d(data.system_specs.module_brand,     "N/A"),
+      inverter_count:   d(data.system_specs.inverter_count,   "N/A"),
+      inverter_kw:      d(data.system_specs.inverter_kw,      "N/A"),
+      inverter_brand:   d(data.system_specs.inverter_brand,   "N/A"),
+      inverter_voltage: d(data.system_specs.inverter_voltage, "N/A"),
+    },
+  };
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function ReviewPage() {
@@ -112,7 +167,7 @@ export default function ReviewPage() {
   // Initialise draft whenever the saved job loads / reloads
   useEffect(() => {
     if (job?.analysis?.reviewedData) {
-      setDraft(JSON.parse(JSON.stringify(job.analysis.reviewedData)));
+      setDraft(normalize(JSON.parse(JSON.stringify(job.analysis.reviewedData))));
     }
   }, [job]);
 

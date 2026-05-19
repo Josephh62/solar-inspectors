@@ -3,9 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileDown, Loader2, ChevronDown, ChevronUp, Pencil, Check, X, Plus, Trash2 } from "lucide-react";
+import { FileDown, Loader2, ChevronDown, ChevronUp, Pencil, Check, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AvaxLogo } from "@/components/AvaxLogo";
+import { AppHeader, AppFooter, darkBtn, outlineBtn } from "@/components/AppShell";
 
 interface Analysis {
   project_name: string | null;
@@ -256,83 +256,52 @@ export default function ReviewPage() {
   const ss = a?.system_specs;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-[#060c18] text-white flex flex-col">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-slate-950/85 backdrop-blur-md px-6 py-3.5 flex items-center gap-3">
-        <Link
-          href={`/jobs/${jobId}`}
-          className="flex items-center gap-1.5 text-slate-500 hover:text-white transition-all duration-200 hover:-translate-x-0.5 shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Back</span>
-        </Link>
-
-        <Link href="/" className="flex items-center gap-1.5 group shrink-0 ml-1">
-          <AvaxLogo className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-          <span className="font-semibold text-sm tracking-tight text-slate-400 group-hover:text-white transition-colors duration-200">AVAX</span>
-        </Link>
-
-        <span className="text-slate-800 shrink-0">/</span>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{job.address || "Report Review"}</p>
-          {job.clientName && <p className="text-xs text-slate-500 truncate">{job.clientName}</p>}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Edit / Save / Cancel */}
-          {!editing ? (
+      <AppHeader
+        backHref={`/jobs/${jobId}`}
+        crumb={job.address || "Report Review"}
+        subCrumb={job.clientName ?? undefined}
+        actions={
+          <>
+            {!editing ? (
+              <button onClick={startEdit} className={outlineBtn}>
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+            ) : (
+              <>
+                <button onClick={cancelEdit} className={outlineBtn}>
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={saving}
+                  className={darkBtn}
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </>
+            )}
             <button
-              onClick={startEdit}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-white border border-white/12 hover:border-white/25
-                         px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5"
+              onClick={generatePdf}
+              disabled={generating || editing}
+              title={editing ? "Save changes before generating PDF" : undefined}
+              className={darkBtn}
             >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              {generating ? "Generating…" : "Download PDF"}
             </button>
-          ) : (
-            <>
-              <button
-                onClick={cancelEdit}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-white border border-white/12
-                           px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5"
-              >
-                <X className="w-3.5 h-3.5" />
-                Cancel
-              </button>
-              <button
-                onClick={saveEdit}
-                disabled={saving}
-                className="flex items-center gap-1.5 bg-white text-slate-950 disabled:bg-slate-700 disabled:text-slate-500
-                           px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200
-                           hover:-translate-y-0.5 hover:shadow-md hover:shadow-white/15"
-              >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                {saving ? "Saving…" : "Save"}
-              </button>
-            </>
-          )}
+          </>
+        }
+      />
 
-          {/* Download PDF */}
-          <button
-            onClick={generatePdf}
-            disabled={generating || editing}
-            title={editing ? "Save changes before generating PDF" : undefined}
-            className="flex items-center gap-2 bg-white text-slate-950 disabled:bg-slate-800 disabled:text-slate-500
-                       font-semibold px-4 py-1.5 rounded-lg text-sm
-                       transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/15 active:translate-y-0"
-          >
-            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            {generating ? "Generating…" : "Download PDF"}
-          </button>
-        </div>
-      </header>
-
+      <div className="pt-14 flex-1 flex flex-col">
       {/* ── Edit mode banner ─────────────────────────────────────────────── */}
       {editing && (
-        <div className="bg-slate-900 border-b border-amber-500/20 px-6 py-2.5 flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          <p className="text-sm text-amber-300/80">Editing — changes won&apos;t affect the PDF until you save</p>
+        <div className="bg-white/3 border-b border-white/8 px-6 py-2.5 flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+          <p className="text-sm text-slate-400">Editing — save before generating PDF</p>
         </div>
       )}
 
@@ -340,7 +309,7 @@ export default function ReviewPage() {
       {!a ? (
         <div className="flex items-center justify-center py-40 text-slate-600">No analysis data</div>
       ) : (
-        <main className="max-w-2xl mx-auto px-6 py-8 space-y-3">
+        <main className="max-w-2xl mx-auto w-full px-6 py-8 space-y-3 flex-1">
 
           {/* Visual Inspection */}
           <Section title="Visual Inspection">
@@ -440,6 +409,9 @@ export default function ReviewPage() {
 
         </main>
       )}
+
+      <AppFooter />
+      </div>
     </div>
   );
 }

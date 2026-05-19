@@ -84,21 +84,21 @@ function SwipeableCard({
 
   return (
     <div
-      className="relative select-none"
+      className="relative rounded-2xl bg-white/10 select-none"
       onMouseLeave={handleMouseLeave}
     >
-      {/* Delete button — fully rounded, revealed when card slides left */}
+      {/* Delete icon — parent provides the background color, filling corners too */}
       <div
-        className="absolute right-0 inset-y-0 w-20 bg-white/10 hover:bg-white/16 active:bg-white/20
-                   flex flex-col items-center justify-center gap-1 rounded-2xl
-                   cursor-pointer transition-colors duration-150"
+        className="absolute right-0 inset-y-0 w-20
+                   flex flex-col items-center justify-center gap-1
+                   cursor-pointer"
         onClick={onDelete}
       >
         <Trash2 className="w-4 h-4 text-white" />
         <span className="text-white text-[10px] font-semibold tracking-wide">Delete</span>
       </div>
 
-      {/* Card content — own rounded corners so it cleanly separates from delete button */}
+      {/* Card content — slides left over the parent background */}
       <div
         className="relative z-[1] bg-[#060c18] rounded-2xl"
         style={{

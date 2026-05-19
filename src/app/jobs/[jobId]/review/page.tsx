@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileDown, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { AvaxLogo } from "@/components/AvaxLogo";
 
 interface Analysis {
   project_name: string | null; project_address: string | null; inspection_date: string | null; confidence: string;
@@ -37,7 +38,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <div className="bg-slate-900/60 border border-white/8 rounded-xl overflow-hidden transition-all duration-200 hover:border-white/14">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-800/50 transition-colors">
         <h2 className="font-semibold">{title}</h2>
         {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -96,17 +97,33 @@ export default function ReviewPage() {
   const ss = a?.system_specs;
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href={`/jobs/${jobId}`} className="text-slate-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
-        <div className="flex-1">
-          <h1 className="font-semibold">{job.address || "Inspection Review"}</h1>
-          {job.clientName && <p className="text-sm text-slate-400">{job.clientName}</p>}
+    <div className="min-h-screen bg-slate-950 text-white">
+      <header className="sticky top-0 z-40 border-b border-white/8 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center gap-4">
+        <Link
+          href={`/jobs/${jobId}`}
+          className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-all duration-200 hover:-translate-x-0.5 shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-medium">Back</span>
+        </Link>
+
+        <Link href="/" className="flex items-center gap-1.5 group shrink-0">
+          <AvaxLogo className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+          <span className="font-semibold text-sm tracking-tight text-slate-400 group-hover:text-white transition-colors duration-200">AVAX</span>
+        </Link>
+
+        <span className="text-slate-700 shrink-0">/</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate">{job.address || "Report Review"}</p>
+          {job.clientName && <p className="text-xs text-slate-500 truncate">{job.clientName}</p>}
         </div>
+
         <button
           onClick={generatePdf}
           disabled={generating}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-slate-700 text-black disabled:text-slate-500 font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+          className="flex items-center gap-2 bg-white text-slate-950 disabled:bg-slate-800 disabled:text-slate-500
+                     font-semibold px-4 py-2 rounded-lg text-sm shrink-0
+                     transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/15 active:translate-y-0"
         >
           {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
           {generating ? "Generating…" : "Download PDF"}

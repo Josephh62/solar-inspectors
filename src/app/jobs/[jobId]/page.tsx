@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Zap, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import { PhotoUploader } from "@/components/PhotoUploader";
+import { AvaxLogo } from "@/components/AvaxLogo";
 import { toast } from "sonner";
 
 interface Job {
@@ -55,7 +56,7 @@ export default function JobPage() {
   const isAnalyzing = job.status === "ANALYZING" || analyzing;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950 text-white">
       {/* Full-width progress bar — visible on mobile and desktop while analyzing */}
       {isAnalyzing && (
         <div className="fixed top-0 inset-x-0 z-50 h-1 overflow-hidden bg-slate-900">
@@ -63,11 +64,24 @@ export default function JobPage() {
         </div>
       )}
 
-      <header className={`border-b border-slate-800 px-6 py-4 flex items-center gap-4 ${isAnalyzing ? "mt-1" : ""}`}>
-        <Link href="/" className="text-slate-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Link>
+      <header className={`sticky top-0 z-40 border-b border-white/8 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center gap-4 ${isAnalyzing ? "mt-1" : ""}`}>
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-all duration-200 hover:-translate-x-0.5 shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm font-medium">Back</span>
+        </Link>
+
+        <Link href="/" className="flex items-center gap-1.5 group shrink-0">
+          <AvaxLogo className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+          <span className="font-semibold text-sm tracking-tight text-slate-400 group-hover:text-white transition-colors duration-200">AVAX</span>
+        </Link>
+
+        <span className="text-slate-700 shrink-0">/</span>
         <div className="flex-1 min-w-0">
-          <h1 className="font-semibold truncate">{job.address || "Untitled Inspection"}</h1>
-          {job.clientName && <p className="text-sm text-slate-400">{job.clientName}</p>}
+          <p className="font-semibold truncate text-sm">{job.address || "Untitled Report"}</p>
+          {job.clientName && <p className="text-xs text-slate-500 truncate">{job.clientName}</p>}
         </div>
       </header>
 
@@ -92,7 +106,7 @@ export default function JobPage() {
           </div>
         )}
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
           <h2 className="font-medium mb-4">Photos</h2>
           <PhotoUploader jobId={jobId} initialPhotos={job.photos} onChange={load as () => void} />
         </div>
@@ -110,7 +124,9 @@ export default function JobPage() {
         <button
           onClick={analyze}
           disabled={isAnalyzing || !job.photos.some((p) => p.imageData)}
-          className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-slate-800 disabled:text-slate-500 text-black font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-white text-slate-950 disabled:bg-slate-800 disabled:text-slate-500 font-semibold py-3 rounded-xl
+                     transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/15 active:translate-y-0
+                     flex items-center justify-center gap-2"
         >
           {isAnalyzing
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing with AI…</>

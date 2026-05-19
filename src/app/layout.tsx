@@ -7,7 +7,7 @@ const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AVAX",
-  description: "AI-powered solar inspection reports",
+  description: "Solar inspection reports",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

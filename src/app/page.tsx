@@ -1,181 +1,307 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, ChevronRight, Loader2, FileText } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { AvaxLogo } from "@/components/AvaxLogo";
 
-interface Job {
-  id: string;
-  address: string | null;
-  clientName: string | null;
-  status: string;
-  createdAt: string;
-  photos: { id: string }[];
-  analysis: { id: string } | null;
+// ── Reusable section label ─────────────────────────────────────────────────
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.22em] mb-6">
+      {children}
+    </p>
+  );
 }
 
-const STATUS_LABEL: Record<string, { label: string; classes: string }> = {
-  DRAFT:      { label: "Draft",      classes: "bg-slate-800 text-slate-400 border border-slate-700" },
-  ANALYZING:  { label: "Analyzing",  classes: "bg-blue-950 text-blue-300 border border-blue-800" },
-  REVIEW:     { label: "Review",     classes: "bg-amber-950 text-amber-300 border border-amber-800" },
-  GENERATING: { label: "Generating", classes: "bg-purple-950 text-purple-300 border border-purple-800" },
-  COMPLETE:   { label: "Complete",   classes: "bg-emerald-950 text-emerald-300 border border-emerald-800" },
-  ERROR:      { label: "Error",      classes: "bg-red-950 text-red-400 border border-red-800" },
-};
+// ── Thin divider ───────────────────────────────────────────────────────────
+function Divider() {
+  return <div className="border-t border-white/8 my-24" />;
+}
 
-export default function Dashboard() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function loadJobs() {
-    const res = await fetch("/api/jobs");
-    if (res.ok) setJobs((await res.json()).jobs);
-    setLoading(false);
-  }
-
-  useEffect(() => { loadJobs(); }, []);
-
-  async function deleteJob(id: string) {
-    if (!confirm("Delete this report and all its photos?")) return;
-    await fetch(`/api/jobs/${id}`, { method: "DELETE" });
-    setJobs((j) => j.filter((x) => x.id !== id));
-    toast.success("Report deleted");
-  }
-
-  const hasJobs = !loading && jobs.length > 0;
-
+export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-[#060c18] text-white selection:bg-white/20">
 
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 group cursor-default select-none">
-          <AvaxLogo className="w-7 h-7 transition-transform duration-300 group-hover:scale-110" />
-          <span className="font-semibold text-lg tracking-tight">AVAX</span>
-        </div>
-        <Link
-          href="/jobs/new"
-          className="flex items-center gap-2 bg-white text-slate-950 font-semibold px-4 py-2 rounded-lg text-sm
-                     transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/15 active:translate-y-0"
-        >
-          <Plus className="w-4 h-4" /> New Report
-        </Link>
-      </header>
-
-      {/* ── Loading ── */}
-      {loading && (
-        <div className="flex justify-center items-center py-40">
-          <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
-        </div>
-      )}
-
-      {/* ── Empty state hero ── */}
-      {!loading && !hasJobs && (
-        <main className="max-w-4xl mx-auto px-6 pt-24 pb-16">
-          <p className="text-xs font-semibold tracking-[0.2em] text-slate-500 uppercase mb-8">
-            Construction Reporting
-          </p>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight mb-8">
-            Reports that get<br />
-            <span className="text-slate-400">the job done.</span>
-          </h1>
-          <p className="text-slate-400 text-lg sm:text-xl max-w-xl leading-relaxed mb-12">
-            Upload job site photos. AVAX analyzes every detail and delivers a
-            professional inspection report — ready to share in minutes.
-          </p>
-          <Link
-            href="/jobs/new"
-            className="inline-flex items-center gap-2 bg-white text-slate-950 font-semibold px-7 py-3.5 rounded-lg text-base
-                       transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-white/20 active:translate-y-0"
-          >
-            <Plus className="w-5 h-5" /> Create your first report
+      {/* ── Nav ──────────────────────────────────────────────────────────── */}
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/6 bg-[#060c18]/85 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <AvaxLogo className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+            <span className="font-bold text-base tracking-tight">AVAX</span>
           </Link>
 
-          {/* Feature grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-24 pt-12 border-t border-white/8">
+          <div className="hidden sm:flex items-center gap-8 text-sm text-slate-400">
+            <a href="#problem" className="hover:text-white transition-colors duration-150">The Problem</a>
+            <a href="#how" className="hover:text-white transition-colors duration-150">How It Works</a>
+            <a href="#why" className="hover:text-white transition-colors duration-150">Why AVAX</a>
+          </div>
+
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 bg-white text-[#060c18] font-semibold px-4 py-2 rounded-lg text-sm
+                       transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/15 active:translate-y-0"
+          >
+            Open Dashboard <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-6 pt-14">
+
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <section className="min-h-[88vh] flex flex-col justify-center py-24">
+          <Eyebrow>Construction Reporting</Eyebrow>
+
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-8 max-w-4xl">
+            Build reports that<br />
+            <span className="text-slate-500">move jobs forward.</span>
+          </h1>
+
+          <p className="text-slate-400 text-xl sm:text-2xl max-w-2xl leading-relaxed mb-12 font-light">
+            Upload site photos. AVAX delivers a complete, professional
+            inspection report — analyzed, formatted, and ready to
+            share in minutes.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2.5 bg-white text-[#060c18] font-bold px-8 py-4 rounded-xl text-lg
+                         transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl hover:shadow-white/20 active:translate-y-0"
+            >
+              Start your first report <ArrowRight className="w-5 h-5" />
+            </Link>
+            <a
+              href="#how"
+              className="inline-flex items-center gap-2 text-slate-400 hover:text-white font-medium px-8 py-4 rounded-xl text-lg
+                         border border-white/10 hover:border-white/25 transition-all duration-200 hover:bg-white/4"
+            >
+              See how it works
+            </a>
+          </div>
+
+          {/* Stats row */}
+          <div className="flex flex-wrap gap-x-12 gap-y-6 mt-20 pt-12 border-t border-white/8">
             {[
-              {
-                title: "Upload any photos",
-                body: "HEIC, JPEG, PNG — straight from your iPhone or any job site camera.",
-              },
-              {
-                title: "Instant analysis",
-                body: "Every photo examined for damage, defects, and compliance details.",
-              },
-              {
-                title: "Professional PDF",
-                body: "Branded reports ready to send to clients and contractors immediately.",
-              },
-            ].map(({ title, body }) => (
-              <div
-                key={title}
-                className="group transition-all duration-200 hover:translate-y-[-2px]"
-              >
-                <p className="font-semibold mb-2 group-hover:text-white transition-colors duration-200">{title}</p>
-                <p className="text-slate-500 text-sm leading-relaxed">{body}</p>
+              { stat: "< 2 min", label: "Average report time" },
+              { stat: "100%", label: "Photo-based analysis" },
+              { stat: "PDF ready", label: "Shareable instantly" },
+            ].map(({ stat, label }) => (
+              <div key={label}>
+                <p className="text-3xl font-black tracking-tight">{stat}</p>
+                <p className="text-slate-500 text-sm mt-1">{label}</p>
               </div>
             ))}
           </div>
-        </main>
-      )}
+        </section>
 
-      {/* ── Reports list ── */}
-      {hasJobs && (
-        <main className="max-w-3xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between mb-8">
+        <Divider />
+
+        {/* ── The Problem ──────────────────────────────────────────────── */}
+        <section id="problem" className="py-8">
+          <Eyebrow>The Challenge</Eyebrow>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-              <p className="text-slate-500 text-sm mt-1">{jobs.length} report{jobs.length !== 1 ? "s" : ""}</p>
+              <h2 className="text-5xl sm:text-6xl font-black leading-[1.0] tracking-[-0.02em] mb-6">
+                Reporting slows<br />construction down.
+              </h2>
+              <p className="text-slate-400 text-lg leading-relaxed">
+                Every job needs documentation. But writing reports by hand
+                is slow, error-prone, and pulls inspectors away from
+                the work that matters.
+              </p>
+            </div>
+
+            <div className="space-y-10 lg:pt-2">
+              {[
+                {
+                  title: "Reports take hours to write.",
+                  body: "Hours spent at a desk writing up what was already documented with a camera. That time belongs on the job site.",
+                },
+                {
+                  title: "Details get missed.",
+                  body: "Without structured analysis, issues fall through the cracks — and become costly surprises later.",
+                },
+                {
+                  title: "Clients want clarity.",
+                  body: "Vague handwritten notes don't build trust or close jobs. Professional, branded reports do.",
+                },
+              ].map(({ title, body }) => (
+                <div key={title} className="group">
+                  <p className="font-semibold text-lg mb-2 group-hover:text-white transition-colors duration-150">{title}</p>
+                  <p className="text-slate-500 leading-relaxed">{body}</p>
+                </div>
+              ))}
             </div>
           </div>
+        </section>
 
-          <div className="space-y-2">
-            {jobs.map((job) => {
-              const s = STATUS_LABEL[job.status] ?? STATUS_LABEL.DRAFT;
-              return (
-                <div
-                  key={job.id}
-                  className="group flex items-center gap-4 bg-slate-900/60 border border-white/8 rounded-xl px-5 py-4
-                             transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-xl hover:shadow-black/40 hover:bg-slate-900"
-                >
-                  <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-slate-800 border border-white/8 flex items-center justify-center
-                                  transition-all duration-200 group-hover:border-white/20">
-                    <FileText className="w-4 h-4 text-slate-400" />
-                  </div>
+        <Divider />
 
-                  <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 mb-0.5">
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${s.classes}`}>
-                        {s.label}
-                      </span>
-                      <span className="text-xs text-slate-600">{job.photos.length} photo{job.photos.length !== 1 ? "s" : ""}</span>
-                    </div>
-                    <p className="font-medium truncate text-white">{job.address || "No address"}</p>
-                    <p className="text-sm text-slate-500 truncate">{job.clientName || "No client"}</p>
-                  </Link>
+        {/* ── How It Works ─────────────────────────────────────────────── */}
+        <section id="how" className="py-8">
+          <Eyebrow>How AVAX Works</Eyebrow>
 
-                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                      onClick={() => deleteJob(job.id)}
-                      className="p-2 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-950/40 transition-all duration-150 hover:scale-110"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <Link
-                      href={`/jobs/${job.id}`}
-                      className="p-2 rounded-lg text-slate-600 hover:text-white hover:bg-slate-800 transition-all duration-150"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
+          <h2 className="text-5xl sm:text-6xl font-black leading-[1.0] tracking-[-0.02em] mb-16 max-w-2xl">
+            From photos to<br />report in minutes.
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+            {[
+              {
+                step: "01",
+                title: "Upload your photos",
+                body: "Drop HEIC, JPEG, or PNG photos straight from your iPhone or any job site camera. No conversion needed.",
+              },
+              {
+                step: "02",
+                title: "AVAX analyzes",
+                body: "Every photo is examined for damage, defects, materials, and compliance details. Automatically categorized and described.",
+              },
+              {
+                step: "03",
+                title: "Download your report",
+                body: "A professional branded PDF — ready to send to clients, contractors, or file for compliance. In under two minutes.",
+              },
+            ].map(({ step, title, body }) => (
+              <div
+                key={step}
+                className="group relative bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/16
+                           rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1"
+              >
+                <p className="text-slate-700 text-5xl font-black mb-6 tracking-tight">{step}</p>
+                <p className="font-semibold text-lg mb-3">{title}</p>
+                <p className="text-slate-500 leading-relaxed text-sm">{body}</p>
+              </div>
+            ))}
           </div>
-        </main>
-      )}
+        </section>
+
+        <Divider />
+
+        {/* ── Why AVAX ─────────────────────────────────────────────────── */}
+        <section id="why" className="py-8">
+          <Eyebrow>Why AVAX</Eyebrow>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+            <div>
+              <h2 className="text-5xl sm:text-6xl font-black leading-[1.0] tracking-[-0.02em] mb-6">
+                More time on-site.<br />
+                <span className="text-slate-500">Less time at a desk.</span>
+              </h2>
+              <p className="text-slate-400 text-lg leading-relaxed mb-8">
+                AVAX is built for the pace of construction. Upload photos
+                at the end of the day. Reports are ready before morning.
+              </p>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 bg-white text-[#060c18] font-bold px-6 py-3 rounded-xl
+                           transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-white/20"
+              >
+                Open Dashboard <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Comparison table */}
+            <div className="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-3 text-xs font-semibold text-slate-500 uppercase tracking-widest px-6 py-4 border-b border-white/8">
+                <span></span>
+                <span className="text-center text-white">AVAX</span>
+                <span className="text-center">Traditional</span>
+              </div>
+              {[
+                { label: "Time to report",    avax: "< 2 minutes",   trad: "2–4 hours" },
+                { label: "Photo analysis",    avax: "Automatic",     trad: "Manual" },
+                { label: "PDF output",        avax: "Branded PDF",   trad: "Word doc / paper" },
+                { label: "Detail capture",    avax: "AI-analyzed",   trad: "Memory / notes" },
+                { label: "Client-ready",      avax: "Instant",       trad: "After editing" },
+                { label: "Mobile friendly",   avax: "Yes",           trad: "Rarely" },
+              ].map(({ label, avax, trad }) => (
+                <div key={label} className="grid grid-cols-3 px-6 py-3.5 border-b border-white/6 last:border-0 hover:bg-white/4 transition-colors duration-150">
+                  <span className="text-slate-400 text-sm">{label}</span>
+                  <span className="text-center text-sm font-semibold text-white flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />{avax}
+                  </span>
+                  <span className="text-center text-sm text-slate-600 flex items-center justify-center gap-1.5">
+                    <XCircle className="w-3.5 h-3.5 text-slate-700 shrink-0" />{trad}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── For builders ─────────────────────────────────────────────── */}
+        <section className="py-8">
+          <Eyebrow>Built For</Eyebrow>
+
+          <h2 className="text-5xl sm:text-6xl font-black leading-[1.0] tracking-[-0.02em] mb-12 max-w-xl">
+            Built for people<br />who build things.
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+            {[
+              { who: "General Contractors", what: "Document subcontractor work and site conditions at every stage." },
+              { who: "Site Inspectors",     what: "Turn a site walkthrough into a polished deliverable the same day." },
+              { who: "Project Managers",    what: "Keep clients informed with clear, professional progress reports." },
+              { who: "Roofing Companies",   what: "Capture damage, materials, and recommendations photo by photo." },
+              { who: "Solar Installers",    what: "Inspect panel arrays and electrical systems with structured output." },
+              { who: "Insurance Adjusters", what: "Generate thorough photo-backed documentation for every claim." },
+            ].map(({ who, what }) => (
+              <div
+                key={who}
+                className="group bg-white/3 hover:bg-white/6 border border-white/8 hover:border-white/16
+                           rounded-2xl p-7 transition-all duration-200 hover:-translate-y-0.5"
+              >
+                <p className="font-semibold mb-2 group-hover:text-white transition-colors duration-150">{who}</p>
+                <p className="text-slate-500 text-sm leading-relaxed">{what}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Footer CTA (USVC "The future has shareholders" equivalent) ── */}
+        <section className="py-24 text-center">
+          <Eyebrow>Get Started</Eyebrow>
+          <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-6">
+            Your job sites deserve<br />
+            <span className="text-slate-500">better documentation.</span>
+          </h2>
+          <p className="text-slate-400 text-xl max-w-xl mx-auto mb-12 font-light leading-relaxed">
+            Start building professional reports today. No setup.
+            No learning curve. Just upload and go.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-3 bg-white text-[#060c18] font-black px-10 py-5 rounded-2xl text-xl
+                       transition-all duration-200 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-white/25 active:translate-y-0"
+          >
+            Open Dashboard <ArrowRight className="w-6 h-6" />
+          </Link>
+        </section>
+
+      </main>
+
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/8 py-10 mt-8">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <AvaxLogo className="w-5 h-5 opacity-50" />
+            <span className="font-semibold">AVAX</span>
+            <span className="ml-2">© {new Date().getFullYear()}</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <Link href="/dashboard" className="hover:text-slate-400 transition-colors duration-150">Dashboard</Link>
+            <Link href="/jobs/new" className="hover:text-slate-400 transition-colors duration-150">New Report</Link>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

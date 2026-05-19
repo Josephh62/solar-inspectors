@@ -31,7 +31,7 @@ export default function NewJobPage() {
     <div className="min-h-screen bg-slate-950 text-white">
       <header className="sticky top-0 z-40 border-b border-white/8 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center gap-4">
         <Link
-          href="/"
+          href="/dashboard"
           className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-all duration-200 hover:-translate-x-0.5"
         >
           <ArrowLeft className="w-4 h-4" />

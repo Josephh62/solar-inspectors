@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 
-async function ownsJob(jobId: string, userId: string) {
-  const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
-  return !!job;
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { jobId } = await params;
-  const job = await prisma.job.findFirst({
-    where: { id: jobId, userId: session.user.id },
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
     include: { photos: { orderBy: { sortOrder: "asc" } }, analysis: true, report: true },
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -23,12 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ job
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { jobId } = await params;
-  if (!await ownsJob(jobId, session.user.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
   if (body.address !== undefined) data.address = body.address;
@@ -46,12 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ jo
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { jobId } = await params;
-  if (!await ownsJob(jobId, session.user.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
   await prisma.job.delete({ where: { id: jobId } });
   return NextResponse.json({ success: true });
 }

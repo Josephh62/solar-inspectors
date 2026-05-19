@@ -3,19 +3,15 @@ import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { generatePdf } from "@/lib/pdf/generator";
 import type { Analysis } from "@/lib/claude";
-import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { jobId } = await params;
 
-  const job = await prisma.job.findFirst({
-    where: { id: jobId, userId: session.user.id },
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
     include: { photos: { orderBy: { sortOrder: "asc" } }, analysis: true },
   });
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });

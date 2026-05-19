@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processImage, isSupported } from "@/lib/image";
-import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   try {
     const form = await req.formData();
     const jobId = form.get("jobId") as string | null;
     if (!jobId) return NextResponse.json({ error: "jobId required" }, { status: 400 });
 
-    const job = await prisma.job.findFirst({ where: { id: jobId, userId: session.user.id } });
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const files = form.getAll("photos") as File[];

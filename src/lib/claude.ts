@@ -6,6 +6,8 @@ const PROMPT = `You are analyzing solar installation inspection photos to genera
 
 FOCUS: Describe only solar panels and electrical components connected to the solar system. Ignore satellite dishes, trees, neighboring homes, plumbing pipes/vents, and unrelated background objects. For handwritten blueprints, circled '+' and '-' symbols indicate home run and jumper connections — call them "positive and negative heads".
 
+MODULE COUNT: Count every individual solar panel you can see across all photos. Use aerial or overview shots as your primary count source. If the same panels appear in multiple photos, count them only once. If you can count confidently, return the exact integer. If panels are partially obscured or cut off, give your best count and note it (e.g. "24 (partially visible)"). Only return null if no panels are visible at all.
+
 STRICT RULE: Only report what is EXPLICITLY visible in the photos. Do not guess, infer, or assume.
 - No electrical readings unless you can read exact numbers from a display screen.
 - No system specs unless readable from labels, nameplates, blueprints, or permit documents.
@@ -52,7 +54,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
     "string_result": "String-level findings if visible. Else: 'Not visible in provided photos'"
   },
   "system_specs": {
-    "module_count": "Exact count if readable — else null",
+    "module_count": "Count all individual panels visible across all photos (see MODULE COUNT rules above). Return exact integer as a string, or your best estimate with a note, or null only if no panels visible.",
     "module_watts": "Exact wattage if readable — else null",
     "module_brand": "Brand name if readable — else null",
     "inverter_count": "Exact count if visible — else null",

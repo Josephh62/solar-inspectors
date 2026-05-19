@@ -8,7 +8,7 @@ import { AppHeader, AppFooter, darkBtn } from "@/components/AppShell";
 export default function NewJobPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ address: "", clientName: "", inspectorName: "", inspectionDate: "" });
+  const [form, setForm] = useState({ address: "", clientName: "", inspectorName: "", inspectionDate: "", trade: "solar" });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +53,28 @@ export default function NewJobPage() {
                 />
               </div>
             ))}
+
+            {/* Trade dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">Trade</label>
+              <div className="relative">
+                <select
+                  value={form.trade}
+                  onChange={(e) => setForm({ ...form, trade: e.target.value })}
+                  className="w-full bg-white/4 border border-white/10 rounded-xl px-4 py-3 text-white
+                             focus:outline-none focus:border-white/30 focus:bg-white/6 transition-all duration-200
+                             appearance-none cursor-pointer pr-10"
+                >
+                  <option value="solar" className="bg-[#060c18] text-white">Solar</option>
+                </select>
+                {/* Custom chevron */}
+                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1.5">Inspection Date</label>

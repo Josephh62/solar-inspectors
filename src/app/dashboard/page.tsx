@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Plus, Trash2, ChevronRight, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -25,9 +25,106 @@ const STATUS_LABEL: Record<string, { label: string; classes: string }> = {
   ERROR:      { label: "Error",      classes: "bg-red-950 text-red-400 border border-red-800" },
 };
 
+// ── Swipeable card ────────────────────────────────────────────────────────────
+
+const REVEAL = 80;       // px revealed for delete button
+const SNAP   = 36;       // px drag required to snap open
+
+function SwipeableCard({
+  onDelete,
+  children,
+}: {
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  const [offset, setOffset]   = useState(0);
+  const [open, setOpen]       = useState(false);
+  const startX    = useRef(0);
+  const isDragging = useRef(false);
+
+  function clamp(v: number) { return Math.max(0, Math.min(v, REVEAL)); }
+
+  function baseX() { return open ? REVEAL : 0; }
+
+  // ── touch ──────────────────────────────────────────────────────────
+  function handleTouchStart(e: React.TouchEvent) {
+    startX.current  = e.touches[0].clientX + baseX();
+    isDragging.current = true;
+  }
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isDragging.current) return;
+    setOffset(clamp(startX.current - e.touches[0].clientX));
+  }
+  function handleTouchEnd() {
+    isDragging.current = false;
+    commit();
+  }
+
+  // ── mouse ──────────────────────────────────────────────────────────
+  function handleMouseDown(e: React.MouseEvent) {
+    startX.current  = e.clientX + baseX();
+    isDragging.current = true;
+  }
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!isDragging.current) return;
+    setOffset(clamp(startX.current - e.clientX));
+  }
+  function handleMouseUp()    { isDragging.current = false; commit(); }
+  function handleMouseLeave() { if (isDragging.current) { isDragging.current = false; commit(); } }
+
+  function commit() {
+    const snap = offset > SNAP;
+    setOpen(snap);
+    setOffset(snap ? REVEAL : 0);
+  }
+
+  function close() { setOpen(false); setOffset(0); }
+
+  const sliding = !isDragging.current;
+
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden select-none"
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Delete button — revealed on the right */}
+      <div
+        className="absolute right-0 inset-y-0 w-20 bg-red-600 hover:bg-red-500 active:bg-red-700
+                   flex flex-col items-center justify-center gap-1 rounded-r-2xl
+                   cursor-pointer transition-colors duration-150"
+        onClick={onDelete}
+      >
+        <Trash2 className="w-4 h-4 text-white" />
+        <span className="text-white text-[10px] font-bold tracking-wide">Delete</span>
+      </div>
+
+      {/* Card content */}
+      <div
+        style={{
+          transform: `translateX(-${offset}px)`,
+          transition: sliding ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none",
+          willChange: "transform",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onClick={() => { if (open) close(); }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs]       = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   async function loadJobs() {
     const res = await fetch("/api/jobs");
@@ -38,9 +135,12 @@ export default function Dashboard() {
   useEffect(() => { loadJobs(); }, []);
 
   async function deleteJob(id: string) {
-    if (!confirm("Delete this report and all its photos?")) return;
+    setDeleting(id);
+    // let the height-collapse animation play first
+    await new Promise((r) => setTimeout(r, 260));
     await fetch(`/api/jobs/${id}`, { method: "DELETE" });
     setJobs((j) => j.filter((x) => x.id !== id));
+    setDeleting(null);
     toast.success("Report deleted");
   }
 
@@ -57,7 +157,6 @@ export default function Dashboard() {
         }
       />
 
-      {/* offset for fixed header */}
       <div className="pt-14 flex-1 flex flex-col">
 
         {loading && (
@@ -119,39 +218,47 @@ export default function Dashboard() {
             <div className="space-y-2">
               {jobs.map((job) => {
                 const s = STATUS_LABEL[job.status] ?? STATUS_LABEL.DRAFT;
+                const isDeleting = deleting === job.id;
+
                 return (
                   <div
                     key={job.id}
-                    className="group flex items-center gap-4 bg-white/3 border border-white/8 rounded-2xl px-5 py-4
-                               transition-all duration-200 hover:-translate-y-0.5 hover:border-white/18 hover:shadow-xl hover:shadow-black/40 hover:bg-white/5"
+                    style={{
+                      maxHeight: isDeleting ? 0 : 120,
+                      opacity:   isDeleting ? 0 : 1,
+                      marginBottom: isDeleting ? 0 : undefined,
+                    }}
+                    className="transition-all duration-[250ms] ease-in-out overflow-hidden"
                   >
-                    <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center transition-all duration-200 group-hover:border-white/20">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                    </div>
+                    <SwipeableCard onDelete={() => deleteJob(job.id)}>
+                      <div className="flex items-center gap-4 bg-white/3 border border-white/8 rounded-2xl px-5 py-4
+                                      transition-colors duration-200 hover:bg-white/5 hover:border-white/14">
+                        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/6 border border-white/10 flex items-center justify-center">
+                          <FileText className="w-4 h-4 text-slate-400" />
+                        </div>
 
-                    <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2.5 mb-0.5">
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${s.classes}`}>
-                          {s.label}
-                        </span>
-                        <span className="text-xs text-slate-600">{job.photos.length} photo{job.photos.length !== 1 ? "s" : ""}</span>
+                        <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2.5 mb-0.5">
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${s.classes}`}>
+                              {s.label}
+                            </span>
+                            <span className="text-xs text-slate-600">{job.photos.length} photo{job.photos.length !== 1 ? "s" : ""}</span>
+                          </div>
+                          <p className="font-semibold truncate">{job.address || "No address"}</p>
+                          <p className="text-sm text-slate-500 truncate">{job.clientName || "No client"}</p>
+                        </Link>
+
+                        <Link href={`/jobs/${job.id}`} className="p-2 rounded-lg text-slate-600 hover:text-white hover:bg-white/8 transition-all duration-150 shrink-0">
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
                       </div>
-                      <p className="font-semibold truncate">{job.address || "No address"}</p>
-                      <p className="text-sm text-slate-500 truncate">{job.clientName || "No client"}</p>
-                    </Link>
-
-                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button onClick={() => deleteJob(job.id)} className="p-2 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-950/40 transition-all duration-150 hover:scale-110">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <Link href={`/jobs/${job.id}`} className="p-2 rounded-lg text-slate-600 hover:text-white hover:bg-white/8 transition-all duration-150">
-                        <ChevronRight className="w-4 h-4" />
-                      </Link>
-                    </div>
+                    </SwipeableCard>
                   </div>
                 );
               })}
             </div>
+
+            <p className="text-center text-xs text-slate-700 mt-6">Swipe left on a report to delete</p>
           </main>
         )}
 

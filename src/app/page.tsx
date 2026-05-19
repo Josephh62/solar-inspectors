@@ -70,8 +70,8 @@ export default function Home() {
             Construction Reporting
           </p>
 
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-8 max-w-4xl text-[#060c18]">
-            Build reports that<br />
+          <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black leading-[1.0] tracking-[-0.03em] mb-8 max-w-4xl text-[#060c18] break-words">
+            Build reports that{" "}
             <span className="text-slate-400">move jobs forward.</span>
           </h1>
 
@@ -247,10 +247,10 @@ export default function Home() {
           <Divider />
 
           {/* ── Footer CTA ──────────────────────────────────────────── */}
-          <section className="min-h-screen flex flex-col items-center justify-center text-center py-24">
+          <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-24">
             <Eyebrow>Get Started</Eyebrow>
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-6 max-w-4xl mx-auto">
-              Your job sites deserve<br />
+            <h2 className="text-4xl sm:text-6xl lg:text-8xl font-black leading-[1.0] tracking-[-0.03em] mb-6 max-w-4xl mx-auto break-words">
+              Your job sites deserve{" "}
               <span className="text-slate-500">better documentation.</span>
             </h2>
             <p className="text-slate-400 text-xl max-w-xl mx-auto mb-12 font-light leading-relaxed">

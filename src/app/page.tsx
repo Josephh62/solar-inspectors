@@ -247,9 +247,9 @@ export default function Home() {
           <Divider />
 
           {/* ── Footer CTA ──────────────────────────────────────────── */}
-          <section className="pb-32 text-center">
+          <section className="min-h-screen flex flex-col items-center justify-center text-center py-24">
             <Eyebrow>Get Started</Eyebrow>
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-6">
+            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black leading-[0.95] tracking-[-0.03em] mb-6 max-w-4xl mx-auto">
               Your job sites deserve<br />
               <span className="text-slate-500">better documentation.</span>
             </h2>

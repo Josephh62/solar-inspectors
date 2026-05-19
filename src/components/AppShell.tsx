@@ -1,23 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { AvaxLogo } from "./AvaxLogo";
+import { signOut, useSession } from "next-auth/react";
 
 // ── Header shared across all app pages ───────────────────────────────────────
 
 interface AppHeaderProps {
-  /** Back destination — if omitted, only AVAX home link shows */
   backHref?: string;
   backLabel?: string;
-  /** Breadcrumb text shown after the AVAX logo */
   crumb?: string;
   subCrumb?: string;
-  /** Slot for right-side actions (buttons) */
   actions?: React.ReactNode;
 }
 
 export function AppHeader({ backHref, backLabel = "Back", crumb, subCrumb, actions }: AppHeaderProps) {
+  const { data: session } = useSession();
+
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-black/8">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center gap-3">
@@ -55,7 +55,19 @@ export function AppHeader({ backHref, backLabel = "Back", crumb, subCrumb, actio
         {!crumb && <div className="flex-1" />}
 
         {/* Right actions */}
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        <div className="flex items-center gap-2 shrink-0">
+          {actions}
+          {session && (
+            <button
+              onClick={() => signOut({ callbackUrl: "/sign-in" })}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-[#060c18] text-sm font-medium transition-colors duration-150 px-2 py-1 rounded-lg hover:bg-black/5"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -82,7 +94,7 @@ export function AppFooter() {
   );
 }
 
-// ── Dark button style used throughout the app ────────────────────────────────
+// ── Button styles ────────────────────────────────────────────────────────────
 
 export const darkBtn = [
   "inline-flex items-center gap-2 bg-[#060c18] text-white font-semibold px-4 py-2 rounded-lg text-sm",

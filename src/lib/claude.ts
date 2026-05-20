@@ -6,7 +6,16 @@ const PROMPT = `You are analyzing solar installation inspection photos to genera
 
 FOCUS: Describe only solar panels and electrical components connected to the solar system. Ignore satellite dishes, trees, neighboring homes, plumbing pipes/vents, and unrelated background objects. For handwritten blueprints, circled '+' and '-' symbols indicate home run and jumper connections — call them "positive and negative heads".
 
-MODULE COUNT: Count every individual solar panel you can see across all photos. Use aerial or overview shots as your primary count source. If the same panels appear in multiple photos, count them only once. If you can count confidently, return the exact integer. If panels are partially obscured or cut off, give your best count and note it (e.g. "24 (partially visible)"). Only return null if no panels are visible at all.
+MODULE COUNT — follow this exact method:
+1. Look at every photo. Identify all photos that show panels.
+2. For each photo, count panels using a GRID METHOD: identify rows and columns separately, then multiply. Do not just eyeball a total — trace each row left to right, count the panels in that row, then move to the next row.
+3. Panels that are partially cut off at the edge of the frame still count as full panels — include them.
+4. Panels that appear smaller in the background due to perspective still count — do not skip back rows.
+5. If the array spans multiple roof faces or sections visible across different photos, count each section separately and add them together.
+6. Use the photo that shows the most complete view of the array as your primary count. Cross-check with other photos to catch sections not visible in the primary shot.
+7. After counting, do a sanity check: does your number match the visible grid pattern? (e.g. if you see 5 columns and 6 rows that's 30 panels — recount if your number is far off)
+8. Return your best integer count. If you are uncertain, still commit to a number and add a note like "28 (some panels partially obscured)" rather than giving up.
+9. Only return null if zero panels are visible in any photo.
 
 STRICT RULE: Only report what is EXPLICITLY visible in the photos. Do not guess, infer, or assume.
 - No electrical readings unless you can read exact numbers from a display screen.
@@ -54,7 +63,7 @@ Return ONLY a valid JSON object — no markdown fences, no explanation:
     "string_result": "String-level findings if visible. Else: 'Not visible in provided photos'"
   },
   "system_specs": {
-    "module_count": "Count all individual panels visible across all photos (see MODULE COUNT rules above). Return exact integer as a string, or your best estimate with a note, or null only if no panels visible.",
+    "module_count": "Your panel count from the MODULE COUNT method above. Use row×column grid counting. Include edge-cropped and perspective-foreshortened panels. Return a string like \"29\" or \"28 (one row partially hidden)\". Never return null unless zero panels are visible anywhere.",
     "module_watts": "Exact wattage if readable — else null",
     "module_brand": "Brand name if readable — else null",
     "inverter_count": "Exact count if visible — else null",
